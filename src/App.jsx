@@ -161,13 +161,11 @@ const Btn = ({children,variant="primary",size="md",onClick,disabled,icon:Icon,cl
 
 const Modal = ({open,onClose,title,children,wide}) => {
   if(!open) return null;
-  return <div style={{position:"fixed",top:0,left:0,right:0,bottom:0,zIndex:9999,overflow:"auto",background:"rgba(0,0,0,0.4)",backdropFilter:"blur(4px)"}} onClick={onClose}>
-    <div style={{minHeight:"100%",display:"flex",alignItems:"center",justifyContent:"center",padding:16}}>
-      <div className={`bg-white rounded-2xl shadow-2xl ${wide?"w-full max-w-3xl":"w-full max-w-lg"} flex flex-col`} style={{maxHeight:"85vh"}} onClick={e=>e.stopPropagation()}>
+  return <div style={{position:"fixed",top:0,left:0,right:0,bottom:0,zIndex:9999,overflow:"auto",background:"rgba(0,0,0,0.4)",backdropFilter:"blur(4px)",display:"flex",alignItems:"flex-start",justifyContent:"center",paddingTop:48,paddingBottom:48}} onClick={onClose}>
+      <div className={`bg-white rounded-2xl shadow-2xl ${wide?"w-full max-w-3xl":"w-full max-w-lg"} flex flex-col mx-4`} style={{maxHeight:"85vh"}} onClick={e=>e.stopPropagation()}>
         <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 shrink-0"><h2 className="text-lg font-bold" style={{color:B.t1}}>{title}</h2><button onClick={onClose} className="p-1 rounded-lg hover:bg-slate-100"><X size={20} className="text-slate-400"/></button></div>
         <div className="p-6 overflow-y-auto flex-1">{children}</div>
       </div>
-    </div>
   </div>;
 };
 
@@ -206,6 +204,7 @@ const CR_NAV = [
 ];
 const DB_NAV = [
   {id:"db-dashboard",label:"Дашборд",icon:LayoutDashboard},
+  {id:"db-tasks",label:"Задачи",icon:ClipboardList},
   {id:"db-supplies",label:"Мои поставки",icon:FileText},
   {id:"db-payments",label:"График платежей",icon:Calendar},
   {id:"db-limit",label:"Факторинговый лимит",icon:Shield},
@@ -253,6 +252,7 @@ const Sidebar = ({ctx,setCtx,active,setActive}) => {
           {item.id==="db-supplies"&&pendingConfirm>0&&<span className="px-2 py-0.5 rounded-full text-xs font-bold text-white" style={{background:B.yellow}}>{pendingConfirm}</span>}
           {item.id==="cr-documents"&&<span className="px-2 py-0.5 rounded-full text-xs font-bold text-white" style={{background:B.orange}}>2</span>}
           {item.id==="cr-tasks"&&<span className="px-2 py-0.5 rounded-full text-xs font-bold text-white" style={{background:B.red}}>3</span>}
+          {item.id==="db-tasks"&&<span className="px-2 py-0.5 rounded-full text-xs font-bold text-white" style={{background:B.red}}>{DB_DEALS.filter(d=>!d.confirmed).length}</span>}
           {item.id==="cr-support"&&<span className="px-2 py-0.5 rounded-full text-xs font-bold text-white" style={{background:B.yellow}}>1</span>}
           {item.id==="cr-messages"&&<span className="px-2 py-0.5 rounded-full text-xs font-bold text-white" style={{background:B.accent}}>2</span>}
           {item.id==="db-documents"&&pendingConfirm>0&&<span className="px-2 py-0.5 rounded-full text-xs font-bold text-white" style={{background:B.orange}}>{pendingConfirm}</span>}
@@ -613,87 +613,92 @@ const CrDashboard = ({setActive,setInitialThread}) => {
   </div>;
 };
 
-const DbDashboard = ({setActive}) => {
-  const activeSupplies = DB_DEALS.filter(d=>d.status==="active"||d.status==="pending");
-  const totalOwed = activeSupplies.reduce((s,d)=>s+d.amount,0);
-  const nextPayment = DB_PAYMENTS.sort((a,b)=>a.daysLeft-b.daysLeft)[0];
-  const totalLimit = SUPPLIERS.reduce((s,sup)=>s+sup.limit,0);
-  const totalUsed = SUPPLIERS.reduce((s,sup)=>s+sup.used,0);
-  const pendingConfirm = DB_DEALS.filter(d=>!d.confirmed);
-  const totalPaid = DB_DEALS.filter(d=>d.status==="paid").reduce((s,d)=>s+d.amount,0);
-  const [showDashReqs,setShowDashReqs]=useState(false);
+
+const DbTasks = ({setActive,setInitialThread}) => {
   const [toast,setToast]=useState(null);
+  const [expandedTask,setExpandedTask]=useState(null);
+  const [completedTasks,setCompletedTasks]=useState(new Set(["done-1","done-2"]));
+  const [taskReply,setTaskReply]=useState("");
+  const pendingConfirm=DB_DEALS.filter(d=>!d.confirmed);
+  const tasks=[
+    ...pendingConfirm.map(d=>{const sup=SUPPLIERS.find(s=>s.id===d.supplierId);return {id:`confirm-${d.id}`,priority:"high",title:`Подтвердить уведомление ${d.id}`,desc:`${sup?.name||""} · ${fmtByn(d.amount)} · ЭЦП ожидает`,type:"ecp",icon:Pen,color:B.red}}),
+    {id:"msg-1",priority:"low",title:"Ответить на сообщение по УС-2026-1001",desc:"ООО «АльфаСтрой» · Уточните дату отгрузки",type:"message",dealId:"УС-2026-1001",action:"db-messages",icon:MessageCircle,color:B.purple},
+    {id:"actualize",priority:"medium",title:"Актуализация данных компании",desc:"Подтвердите или обновите данные · Q1 2026",type:"actualize",action:"db-profile",icon:Info,color:B.purple},
+    {id:"done-1",priority:"low",title:"Оплата по УС-2026-1003 проведена",desc:"50 000 BYN · 15.03.2026",type:"done",icon:CheckCircle,color:B.green},
+    {id:"done-2",priority:"low",title:"Уведомление УС-2026-1004 подтверждено",desc:"ООО «АльфаСтрой» · 30 000 BYN",type:"done",icon:CheckCircle,color:B.green},
+  ].map(t=>({...t,status:completedTasks.has(t.id)?"done":(t.type==="done"?"done":"open")}));
+  const [filter,setFilter]=useState("open");
+  const filtered=tasks.filter(t=>filter==="all"?true:t.status===filter);
+  const openCount=tasks.filter(t=>t.status==="open").length;
+  const priorityOrder={high:0,medium:1,low:2};
 
-  const kpis = [
-    {label:"К оплате",value:fmtByn(totalOwed),tip2:"Сколько вы должны банку по всем активным уступкам",sub:`${activeSupplies.length} поставки`,icon:CreditCard,color:B.purple,tip:"Общая сумма обязательств перед банком"},
-    {label:"Ближайший платёж",value:nextPayment?fmtByn(nextPayment.amount):"—",sub:nextPayment?`через ${nextPayment.daysLeft} дн.`:"",icon:Calendar,color:nextPayment&&nextPayment.daysLeft<14?B.yellow:B.purple,tip:"Следующий платёж банку"},
-    {label:"Неподтверждённые",value:pendingConfirm.length.toString(),sub:pendingConfirm.length>0?"требуют ЭЦП":"всё подтверждено",icon:AlertCircle,color:pendingConfirm.length>0?B.orange:B.green,tip:"Поставки, ожидающие подтверждения получения через ЭЦП"},
-    {label:"Всего оплачено",value:fmtByn(totalPaid),sub:"за всё время",icon:CheckCircle,color:B.green,tip:"Сумма погашенных обязательств"},
-  ];
+  return <div>{toast&&<Toast message={toast.msg} type={toast.type} onClose={()=>setToast(null)}/>}
+    <PageHeader title="Задачи" subtitle={`${openCount} активных задач`}/>
+    <div className="flex gap-2 mb-5">{[["open",`Активные (${openCount})`],["done","Выполненные"],["all","Все"]].map(([v,l])=><button key={v} onClick={()=>setFilter(v)} className={`px-4 py-2 rounded-xl text-sm font-medium transition-colors ${filter===v?"text-white":"text-slate-500 bg-slate-50"}`} style={filter===v?{background:B.purple}:undefined}>{l}</button>)}</div>
+    <div className="space-y-2">{filtered.sort((a,b)=>priorityOrder[a.priority]-priorityOrder[b.priority]).map(t=><Card key={t.id} className={`transition-all ${t.status==="done"?"opacity-60":""}`}>
+      <div className="p-4 flex items-center gap-4 cursor-pointer hover:bg-slate-50 transition-colors" onClick={()=>{if(t.type==="ecp"||t.type==="message"||t.type==="actualize"){setExpandedTask(expandedTask===t.id?null:t.id)}else if(t.action){setActive(t.action)}}}>
+        <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${t.status==="done"?"bg-slate-100":""}`} style={t.status!=="done"?{background:t.color+"15"}:undefined}><t.icon size={18} style={{color:t.status==="done"?B.t3:t.color}}/></div>
+        <div className="flex-1 min-w-0"><div className="flex items-center gap-2"><span className={`text-sm font-semibold ${t.status==="done"?"line-through":""}`} style={{color:t.status==="done"?B.t3:B.t1}}>{t.title}</span>{t.priority==="high"&&t.status!=="done"&&<span className="px-1.5 py-0.5 rounded text-[9px] font-bold text-white" style={{background:B.red}}>Срочно</span>}</div><div className="text-xs mt-0.5" style={{color:B.t3}}>{t.desc}</div></div>
+        {t.status==="done"?<span className="inline-flex items-center gap-1 text-xs" style={{color:B.green}}><CheckCircle size={14}/>Выполнено</span>:t.type==="ecp"?<span className="text-xs font-medium px-3 py-1.5 rounded-lg" style={{background:t.color+"15",color:t.color}}>{expandedTask===t.id?"Свернуть":"Подписать ↓"}</span>:t.type==="message"?<span className="text-xs font-medium px-3 py-1.5 rounded-lg" style={{background:t.color+"15",color:t.color}}>{expandedTask===t.id?"Свернуть":"Ответить ↓"}</span>:t.type==="actualize"?<span className="text-xs font-medium px-3 py-1.5 rounded-lg" style={{background:t.color+"15",color:t.color}}>{expandedTask===t.id?"Свернуть":"Проверить ↓"}</span>:<span className="text-xs font-medium px-3 py-1.5 rounded-lg" style={{background:t.color+"15",color:t.color}}>Выполнить →</span>}
+      </div>
+      {t.type==="ecp"&&expandedTask===t.id&&t.status!=="done"&&<div className="px-4 pb-4 border-t border-slate-100 pt-3 flex items-center gap-3"><Btn icon={Pen} onClick={()=>{setCompletedTasks(p=>{const n=new Set(p);n.add(t.id);return n});setExpandedTask(null);setToast({msg:`${t.title} — подтверждено ЭЦП`,type:"success"})}} style={{background:B.purple}}>Подтвердить ЭЦП</Btn><Btn variant="secondary" icon={Eye} onClick={()=>setActive("db-documents")}>Просмотреть</Btn></div>}
+      {t.type==="message"&&expandedTask===t.id&&t.status!=="done"&&<div className="px-4 pb-4 border-t border-slate-100 pt-3"><div className="rounded-xl p-3 mb-3 bg-slate-50"><div className="text-[10px] font-medium mb-1" style={{color:B.t3}}>Последнее сообщение:</div><div className="text-xs" style={{color:B.t1}}>«Уточните дату отгрузки по накладной.»</div></div><div className="flex gap-2 mb-2"><input value={taskReply} onChange={e=>setTaskReply(e.target.value)} placeholder="Ваш ответ..." className="flex-1 px-3 py-2 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-purple-200"/><Btn icon={Send} disabled={!taskReply.trim()} onClick={()=>{setCompletedTasks(p=>{const n=new Set(p);n.add(t.id);return n});setExpandedTask(null);setTaskReply("");setToast({msg:"Ответ отправлен",type:"success"})}} style={{background:B.purple}}>Отправить</Btn></div><button onClick={()=>{setInitialThread?.(t.dealId);setActive(t.action)}} className="text-xs font-medium hover:underline" style={{color:B.purple}}>Открыть полный чат →</button></div>}
+      {t.type==="actualize"&&expandedTask===t.id&&t.status!=="done"&&<div className="px-4 pb-4 border-t border-slate-100 pt-3"><div className="flex gap-2"><Btn icon={CheckCircle} onClick={()=>{setCompletedTasks(p=>{const n=new Set(p);n.add(t.id);return n});setExpandedTask(null);setToast({msg:"Данные подтверждены",type:"success"})}} style={{background:B.green}}>Данные актуальны</Btn><Btn variant="secondary" icon={Pen} onClick={()=>setActive("db-profile")}>Перейти в анкету</Btn></div></div>}
+    </Card>)}</div>
+  </div>;
+};
 
-  return <div>
-    {toast&&<Toast message={toast.msg} type={toast.type} onClose={()=>setToast(null)}/>}
-    <div className="mb-6"><h1 className="text-2xl font-bold" style={{color:B.t1}}>{getGreeting()}, Ольга</h1><p className="mt-1 text-sm" style={{color:B.t2}}>Контекст должника — ваши обязательства и платежи</p></div>
+const DbDashboard = ({setActive,setInitialThread}) => {
+  const pendingConfirm=DB_DEALS.filter(d=>!d.confirmed);
+  const activeSupplies=DB_DEALS.filter(d=>d.status==="active"||d.status==="pending");
+  const totalLimit=SUPPLIERS.reduce((s,sup)=>s+sup.limit,0);
+  const totalUsed=SUPPLIERS.reduce((s,sup)=>s+sup.used,0);
+  const [toast,setToast]=useState(null);
+  const taskCount=pendingConfirm.length+1;
 
-    {/* How it works guide */}
-    {pendingConfirm.length>0&&<Card className="p-5 mb-5 animate-fade-up" style={{background:"linear-gradient(135deg,#F5F3FF,#EFF6FF)"}}>
-      <div className="flex items-center gap-2 mb-3"><Info size={15} style={{color:B.purple}}/><span className="text-xs font-bold" style={{color:B.t1}}>Как работает факторинг для вас</span></div>
-      <div className="flex items-start gap-1">{[{n:"1",t:"Поставщик отгружает",d:"Товар / услуга поставлены вам"},{n:"2",t:"Банк оплачивает поставщику",d:"За вас, моментально"},{n:"3",t:"Вы подтверждаете (ЭЦП)",d:"Факт получения поставки"},{n:"4",t:"Вы оплачиваете банку",d:"В срок, по реквизитам"}].map((s,i,a)=><Fragment key={i}><div className="flex-1 text-center"><div className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold mx-auto text-white" style={{background:B.purple}}>{s.n}</div><div className="text-[10px] font-semibold mt-1" style={{color:B.t1}}>{s.t}</div><div className="text-[9px] mt-0.5" style={{color:B.t3}}>{s.d}</div></div>{i<a.length-1&&<div className="pt-3"><ArrowRight size={12} style={{color:B.border}}/></div>}</Fragment>)}</div>
-      <div className="mt-3 pt-3 border-t border-slate-200/50 text-[10px] text-center" style={{color:B.t3}}>Для вас ничего не меняется — те же товары, та же сумма. Оплата идёт на счёт банка. Комиссия для покупателя — 0%.</div>
-    </Card>}
+  return <div>{toast&&<Toast message={toast.msg} type={toast.type} onClose={()=>setToast(null)}/>}
+    <div className="mb-6"><h1 className="text-2xl font-bold" style={{color:B.t1}}>{getGreeting()}, Ольга</h1><p className="mt-1 text-sm" style={{color:B.t2}}>Контекст должника — подтверждение поставок и оплата</p></div>
 
-    {pendingConfirm.length>0&&<Card className="p-4 mb-5 animate-fade-up" style={{background:"#FFF7ED",borderColor:"#FED7AA"}}>
-      <div className="flex items-center gap-3"><AlertCircle size={18} style={{color:B.orange}}/><div className="flex-1"><div className="text-sm font-medium" style={{color:B.t1}}>Требуется подтверждение получения</div><div className="text-xs" style={{color:B.t2}}>{pendingConfirm.length} поставк{pendingConfirm.length===1?"а":"и"} ожида{pendingConfirm.length===1?"ет":"ют"} подтверждения</div></div>
-      <Btn size="sm" onClick={()=>setActive("db-supplies")} style={{background:B.orange}}>Подтвердить</Btn></div>
-    </Card>}
-
-    <div className="grid grid-cols-2 xl:grid-cols-4 gap-4 mb-5">
-      {kpis.map((kpi,i)=><Card key={i} className={`p-4 animate-fade-up stagger-${i+1}`}>
-        <div className="flex items-start justify-between mb-2"><div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{background:kpi.color+"15"}}><kpi.icon size={18} style={{color:kpi.color}}/></div></div>
-        <div className="text-xl font-bold truncate" style={{color:B.t1}}>{kpi.value}</div>
-        <div className="text-xs mt-0.5 truncate" style={{color:B.t2}}>{kpi.sub}</div>
-        <div className="text-xs mt-1" style={{color:B.t3}}><InfoTooltip text={kpi.tip}><span className="border-b border-dotted border-slate-300 cursor-help">{kpi.label}</span></InfoTooltip></div>
-      </Card>)}
-    </div>
-
-    {/* Limit progress */}
-    <Card className="p-4 mb-5 animate-fade-up stagger-2">
-      <div className="flex items-center justify-between mb-2"><div className="flex items-center gap-2"><Shield size={16} style={{color:B.purple}}/><InfoTooltip text="Максимальная сумма, которую поставщики могут уступить банку по вашим поставкам"><span className="text-sm font-medium border-b border-dotted border-slate-300 cursor-help" style={{color:B.t1}}>Кредитный лимит</span></InfoTooltip></div><span className="text-xs" style={{color:B.t3}}>{fmtByn(totalUsed)} из {fmtByn(totalLimit)}</span></div>
-      <div className="h-2.5 rounded-full bg-slate-100 overflow-hidden"><div className="h-full rounded-full transition-all duration-700" style={{width:`${Math.round(totalUsed/totalLimit*100)}%`,background:B.purple}}/></div>
-      <div className="flex justify-between mt-1.5"><span className="text-xs font-medium" style={{color:B.purple}}>{Math.round(totalUsed/totalLimit*100)}% использовано</span><span className="text-xs" style={{color:B.green}}>Доступно: {fmtByn(totalLimit-totalUsed)}</span></div>
-    </Card>
-
-    {/* Upcoming payments */}
-    <Card className="p-5 animate-fade-up stagger-3">
-    <Card className="p-4 mb-5 animate-fade-up stagger-3" style={{background:"#F0F9FF",borderColor:"#BAE6FD"}}>
-      <button onClick={()=>setShowDashReqs(!showDashReqs)} className="w-full flex items-center gap-3 text-left">
-        <CreditCard size={18} style={{color:B.purple}}/>
-        <div className="flex-1"><InfoTooltip text="Оплачивайте на эти реквизиты вместо поставщика — банк уведомит поставщика о получении"><div className="text-sm font-bold border-b border-dotted border-slate-300 cursor-help inline" style={{color:B.t1}}>Реквизиты для оплаты</div></InfoTooltip><div className="text-xs mt-0.5" style={{color:B.t2}}>ЗАО «Нео Банк Азия» · нажмите чтобы раскрыть</div></div>
-        {showDashReqs?<ChevronUp size={16} style={{color:B.t3}}/>:<ChevronDown size={16} style={{color:B.t3}}/>}
-      </button>
-      {showDashReqs&&<div className="mt-3 pt-3 border-t border-blue-200 space-y-2">
-        {[{label:"Получатель",value:"ЗАО «Нео Банк Азия»"},{label:"УНП банка",value:"100123456"},{label:"Р/с",value:"BY20 NEOB 3819 0000 0001 2345",mono:true},{label:"БИК",value:"NEOBBY2X",mono:true},{label:"Назначение",value:"Оплата по договору факторинга"}].map((f,i)=><div key={i} className="flex items-center justify-between px-3 py-2 rounded-lg bg-white/70">
-          <div><div className="text-[10px]" style={{color:B.t3}}>{f.label}</div><div className="text-xs font-medium" style={{color:B.t1,fontFamily:f.mono?"'JetBrains Mono',monospace":undefined}}>{f.value}</div></div>
-          <button onClick={e=>{e.stopPropagation();copyText(f.value);setToast({msg:`${f.label} скопировано`,type:"success"})}} className="text-[10px] font-medium px-2 py-1 rounded hover:bg-slate-100" style={{color:B.accent}}>Скопировать</button>
-        </div>)}
-        <button onClick={e=>{e.stopPropagation();copyText("Получатель: ЗАО «Нео Банк Азия»\nУНП: 100123456\nР/с: BY20 NEOB 3819 0000 0001 2345\nБИК: NEOBBY2X");setToast({msg:"Все реквизиты скопированы",type:"success"})}} className="w-full py-2 rounded-lg text-xs font-semibold text-white text-center" style={{background:B.purple}}>Скопировать все реквизиты</button>
-      </div>}
-    </Card>
-
-      <h3 className="font-semibold text-sm mb-3" style={{color:B.t1}}>Ближайшие платежи</h3>
-      <div className="space-y-3">
-        {DB_PAYMENTS.map(p=><div key={p.id} className="flex items-center gap-3 p-3 rounded-xl bg-slate-50">
-          <div className="flex-1"><div className="text-sm font-medium" style={{color:B.t1}}>{p.supplier}</div><div className="text-xs" style={{color:B.t3}}>{p.dealId} · до {p.dueDate}</div></div>
-          <div className="text-right"><div className="text-lg font-bold" style={{color:B.purple}}>{fmtByn(p.amount)}</div><div className="text-xs" style={{color:p.daysLeft<14?B.yellow:B.green}}>через {p.daysLeft} дн.</div></div>
-          <button onClick={()=>{setInitialThread?.(p.dealId);setActive("db-messages")}} className="flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-medium hover:bg-purple-50 shrink-0" style={{color:B.purple}}><MessageCircle size={10}/>Обсудить</button>
-        </div>)}
+    {/* Tasks */}
+    <Card className="mb-5 overflow-hidden animate-slide-in">
+      <div className="px-5 py-3 flex items-center justify-between border-b border-slate-100" style={{background:"#FAFBFC"}}>
+        <div className="flex items-center gap-2"><ClipboardList size={15} style={{color:B.purple}}/><span className="text-sm font-bold" style={{color:B.t1}}>Задачи</span><span className="px-2 py-0.5 rounded-full text-xs font-bold text-white" style={{background:B.red}}>{taskCount}</span></div>
+        <button onClick={()=>setActive("db-tasks")} className="text-xs font-medium hover:underline" style={{color:B.purple}}>Все задачи →</button>
+      </div>
+      <div className="divide-y divide-slate-50">
+        {pendingConfirm.map(d=>{const sup=SUPPLIERS.find(s=>s.id===d.supplierId);return <button key={d.id} onClick={()=>setActive("db-tasks")} className="w-full flex items-center gap-3 px-5 py-3 hover:bg-slate-50 transition-colors text-left"><div className="w-2 h-2 rounded-full shrink-0" style={{background:B.red}}/><Pen size={14} style={{color:B.red}}/><span className="text-xs flex-1" style={{color:B.t1}}>Подтвердить уведомление {d.id} · {sup?.name} · {fmtByn(d.amount)}</span><span className="text-xs font-medium px-2.5 py-1 rounded-lg" style={{background:B.redL,color:B.red}}>ЭЦП</span></button>})}
+        <button onClick={()=>setActive("db-tasks")} className="w-full flex items-center gap-3 px-5 py-3 hover:bg-slate-50 transition-colors text-left"><div className="w-2 h-2 rounded-full shrink-0" style={{background:B.yellow}}/><Info size={14} style={{color:B.yellow}}/><span className="text-xs flex-1" style={{color:B.t1}}>Актуализация данных компании · Q1 2026</span><span className="text-xs font-medium px-2.5 py-1 rounded-lg" style={{background:B.yellowL,color:B.yellow}}>Проверить</span></button>
       </div>
     </Card>
+
+    {/* Limit */}
+    <Card className="p-6 mb-5 animate-fade-up">
+      <div className="flex items-center gap-2 mb-4"><Shield size={18} style={{color:B.purple}}/><h2 className="text-lg font-bold" style={{color:B.t1}}>Кредитный лимит</h2></div>
+      <div className="grid grid-cols-3 gap-4 mb-4">
+        <div className="rounded-xl p-4 text-center" style={{background:B.purpleL}}><div className="text-[10px] uppercase tracking-wide mb-1" style={{color:B.purple}}>Общий лимит</div><div className="text-2xl font-bold" style={{color:B.purple}}>{fmtByn(totalLimit)}</div></div>
+        <div className="rounded-xl p-4 text-center bg-slate-50"><div className="text-[10px] uppercase tracking-wide mb-1" style={{color:B.t3}}>Использовано</div><div className="text-2xl font-bold" style={{color:B.t1}}>{fmtByn(totalUsed)}</div></div>
+        <div className="rounded-xl p-4 text-center" style={{background:B.greenL}}><div className="text-[10px] uppercase tracking-wide mb-1" style={{color:B.green}}>Доступно</div><div className="text-2xl font-bold" style={{color:B.green}}>{fmtByn(totalLimit-totalUsed)}</div></div>
+      </div>
+      <div className="h-3 rounded-full bg-slate-100 overflow-hidden mb-2"><div className="h-full rounded-full transition-all" style={{width:`${Math.round(totalUsed/totalLimit*100)}%`,background:`linear-gradient(90deg, ${B.purple}, ${B.green})`}}/></div>
+      <div className="text-sm" style={{color:B.t2}}>Использовано <strong style={{color:B.t1}}>{Math.round(totalUsed/totalLimit*100)}%</strong> — {fmtByn(totalUsed)} из {fmtByn(totalLimit)}</div>
+    </Card>
+
+    {/* Active supplies */}
+    {activeSupplies.length>0&&<Card className="p-5 mb-5 animate-fade-up">
+      <div className="flex items-center justify-between mb-3"><div className="flex items-center gap-2"><TrendingUp size={16} style={{color:B.purple}}/><h3 className="text-sm font-bold" style={{color:B.t1}}>Мои активные поставки</h3><span className="text-xs px-2 py-0.5 rounded-full" style={{background:B.purpleL,color:B.purple}}>{activeSupplies.length}</span></div><Btn size="sm" variant="secondary" onClick={()=>setActive("db-supplies")}>Все поставки →</Btn></div>
+      <div className="space-y-2">{activeSupplies.sort((a,b)=>a.daysLeft-b.daysLeft).map(d=>{const sup=SUPPLIERS.find(s=>s.id===d.supplierId);return <div key={d.id} className="flex items-center gap-3 p-3 rounded-xl border border-slate-100 hover:shadow-sm transition-all cursor-pointer" onClick={()=>setActive("db-supplies")}>
+        <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={{background:d.confirmed?B.greenL:B.yellowL}}>{d.confirmed?<CheckCircle size={14} style={{color:B.green}}/>:<Pen size={14} style={{color:B.yellow}}/>}</div>
+        <div className="flex-1 min-w-0"><div className="flex items-center gap-2"><span className="text-xs font-bold" style={{color:B.purple,fontFamily:"'JetBrains Mono',monospace"}}>{d.id}</span><span className="text-xs" style={{color:B.t1}}>{sup?.name}</span></div><div className="text-[10px] mt-0.5" style={{color:B.t3}}>{d.confirmed?"Подтверждена":"Ожидает подтверждения"} · Оплата через {d.daysLeft} дн.</div></div>
+        <div className="text-right shrink-0"><div className="text-sm font-bold" style={{color:B.t1}}>{fmtByn(d.amount)}</div><div className="text-[10px]" style={{color:d.daysLeft<14?B.yellow:B.green}}>до {d.dueDate}</div></div>
+        <button onClick={e=>{e.stopPropagation();setInitialThread?.(d.id);setActive("db-messages")}} className="flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-medium hover:bg-purple-50 shrink-0" style={{color:B.purple}}><MessageCircle size={10}/>Обсудить</button>
+      </div>})}</div>
+    </Card>}
   </div>;
 };
 
 const DbSupplies = ({setActive,setInitialThread}) => {
   const [toast,setToast]=useState(null);
+  const [supSearch,setSupSearch]=useState("");
   const [sectionSigning,setSectionSigning]=useState(null);
   const [signedFields,setSignedFields]=useState(new Set());
   const [addedEntries,setAddedEntries]=useState({});
@@ -736,6 +741,7 @@ const DbSupplies = ({setActive,setInitialThread}) => {
     {toast&&<Toast message={toast.msg} type={toast.type} onClose={()=>setToast(null)}/>}
     <PageHeader title="Мои поставки" subtitle="Входящие уступки от ваших поставщиков"/>
 
+    {doc.type==="profile"&&<Card className="p-5 mb-5"><h3 className="text-sm font-bold mb-2" style={{color:B.t1}}>Версия документа</h3><div className="text-sm" style={{color:B.t2}}>Версия {doc.version||1} от {doc.date}</div>{doc.version>1&&<button className="text-xs mt-2 hover:underline" style={{color:B.accent}} onClick={()=>setToast({msg:"Предыдущая версия открыта",type:"info"})}>← Предыдущая версия</button>}<div className="mt-3"><Btn size="sm" variant="secondary" icon={Pen} onClick={()=>setActive("cr-profile")}>Перейти в анкету</Btn></div></Card>}
     <div className="flex flex-wrap gap-2 mb-5">
       {[["all","Все",B.purple],["pending","Ожидает подтверждения",B.yellow],["rejected","Отклонённые",B.red],["active","Активные",B.green],["paid","Оплаченные",B.accent]].map(([v,l,c])=>
         <button key={v} onClick={()=>setFilter(v)} className={`px-4 py-2 rounded-xl text-sm font-medium transition-colors ${filter===v?"text-white":"text-slate-500 bg-slate-50"}`} style={filter===v?{background:c}:undefined}>{l}</button>
@@ -1477,18 +1483,23 @@ const CrDocuments = ({setActive,setInitialThread}) => {
   const [groupByDeal,setGroupByDeal]=useState(false);
   const [selectedDocs,setSelectedDocs]=useState(new Set());
   const [statusFilter,setStatusFilter]=useState("all");
+  const [groupFilter,setGroupFilter]=useState("all");
   const [emailInput,setEmailInput]=useState("");const [showEmail,setShowEmail]=useState(false);
+  const [showUpload,setShowUpload]=useState(false);const [uploadType,setUploadType]=useState("");const [uploadDeal,setUploadDeal]=useState("");const [uploadFile,setUploadFile]=useState(null);const [uploadDesc,setUploadDesc]=useState("");
 
   const handleSign=(id)=>{setSigningDoc(id);setTimeout(()=>{setSignedDocs(prev=>{const n=new Set(prev);n.add(id);return n});setSigningDoc(null);setToast({msg:"Документ подписан ЭЦП",type:"success"})},1500)};
   const handleBulkSign=()=>{setSigningDoc("bulk");setTimeout(()=>{setSignedDocs(prev=>{const n=new Set(prev);selectedDocs.forEach(id=>n.add(id));return n});setSigningDoc(null);setSelectedDocs(new Set());setToast({msg:`${selectedDocs.size} документов подписано ЭЦП`,type:"success"})},1500)};
 
   // Build unified doc list: GDs + consents + deal docs
-  const contracts=BUYERS.filter(b=>b.status==="green").map((b,i)=>[
-    {id:`gd-${i+1}`,type:"contract",name:`Генеральный договор факторинга №${i+1}`,buyer:b.name,buyerId:b.id,dealId:`ГД-${i+1}`,date:"2026-01-15",amount:b.limit,ecpStatus:"signed"},
-    {id:`bki-${i+1}`,type:"consentBki",name:`Согласие на проверку в БКИ`,buyer:b.name,buyerId:b.id,dealId:`ГД-${i+1}`,date:"2026-01-15",amount:0,ecpStatus:"signed"},
-    {id:`oeb-${i+1}`,type:"consentOeb",name:`Согласие на проверку ОЭБ`,buyer:b.name,buyerId:b.id,dealId:`ГД-${i+1}`,date:"2026-01-15",amount:0,ecpStatus:"signed"},
-    {id:`pd-${i+1}`,type:"consentPd",name:`Согласие на обработку ПД`,buyer:b.name,buyerId:b.id,dealId:`ГД-${i+1}`,date:"2026-01-15",amount:0,ecpStatus:"signed"},
-  ]).flat();
+  const gdDocs=BUYERS.filter(b=>b.status==="green").map((b,i)=>
+    ({id:`gd-${i+1}`,type:"contract",name:`Генеральный договор факторинга №${i+1}`,buyer:b.name,buyerId:b.id,dealId:`ГД-${i+1}`,date:"2026-01-15",amount:b.limit,ecpStatus:"signed"})
+  );
+  const consentDocs=[
+    {id:"bki-company",type:"consentBki",name:"Согласие на проверку в БКИ",buyer:COMPANY.name,buyerId:0,dealId:"Онбординг",date:"2026-01-15",amount:0,ecpStatus:"signed"},
+    {id:"oeb-company",type:"consentOeb",name:"Согласие на проверку ОЭБ",buyer:COMPANY.name,buyerId:0,dealId:"Онбординг",date:"2026-01-15",amount:0,ecpStatus:"signed"},
+    {id:"pd-company",type:"consentPd",name:"Согласие на обработку ПД",buyer:COMPANY.name,buyerId:0,dealId:"Онбординг",date:"2026-01-15",amount:0,ecpStatus:"signed"},
+  ];
+  const contracts=[...gdDocs,...consentDocs];
 
   const dealDocs=CR_DEALS.flatMap(d=>{const buyer=BUYERS.find(b=>b.id===d.buyerId);const num=d.id.split("-")[2];return[
     {id:`ds-${num}`,type:"supAg",name:d.supAg,buyer:buyer?.name||"",buyerId:d.buyerId,dealId:d.id,date:d.shipDate,amount:d.amount,ecpStatus:d.ecpStatus==="pending"?"pending":"signed",term:d.term,discount:d.discount,toReceive:d.toReceive},
@@ -1497,12 +1508,22 @@ const CrDocuments = ({setActive,setInitialThread}) => {
     {id:`ntf-${num}`,type:"notify",name:`Уведомление_${num}`,buyer:buyer?.name||"",buyerId:d.buyerId,dealId:d.id,date:d.shipDate,amount:d.amount,ecpStatus:"signed"},
   ]});
 
-  const allDocs=[...contracts,...dealDocs];
+  const reportDocs=[
+    {id:"rep-bal-q4",type:"report",name:"Баланс Q4 2025",buyer:"—",buyerId:0,dealId:"Отчётность",date:"2025-12-20",amount:0,ecpStatus:"uploaded"},
+    {id:"rep-pl-q4",type:"report",name:"Отчёт о прибылях и убытках Q4 2025",buyer:"—",buyerId:0,dealId:"Отчётность",date:"2025-12-20",amount:0,ecpStatus:"uploaded"},
+    {id:"rep-bal-q1",type:"report",name:"Баланс Q1 2026",buyer:"—",buyerId:0,dealId:"Отчётность",date:"2026-03-22",amount:0,ecpStatus:"uploaded"},
+    {id:"rep-pl-q1",type:"report",name:"Отчёт о прибылях и убытках Q1 2026",buyer:"—",buyerId:0,dealId:"Отчётность",date:"2026-03-22",amount:0,ecpStatus:"uploaded"},
+  ];
+  const profileDocs=[
+    {id:"profile-v1",type:"profile",name:"Анкета компании (Приложение 12)",buyer:COMPANY.name,buyerId:0,dealId:"Онбординг",date:"2026-01-15",amount:0,ecpStatus:"signed",version:1},
+    {id:"profile-v2",type:"profile",name:"Анкета компании (актуализация Q1)",buyer:COMPANY.name,buyerId:0,dealId:"Актуализация",date:"2026-03-22",amount:0,ecpStatus:"signed",version:2},
+  ];
+  const allDocs=[...contracts,...dealDocs,...reportDocs,...profileDocs];
   const getStatus=(doc)=>signedDocs.has(doc.id)?"signed":doc.ecpStatus;
 
-  const typeLabels={contract:"Ген. договор",consent:"Согласие",consentBki:"Согласие БКИ",consentOeb:"Согласие ОЭБ",consentPd:"Согласие ПД",supAg:"Допсоглашение",ttn:"ТТН",act:"Акт ВР",esf:"ЭСЧФ",notify:"Уведомление"};
-  const typeIcons={contract:Shield,consent:CheckCircle,consentBki:Search,consentOeb:Shield,consentPd:Users,supAg:Gavel,esf:Receipt,ttn:FileSpreadsheet,act:CheckCircle,notify:Send};
-  const tabs=[{id:"all",label:"Все",count:allDocs.length},{id:"contract",label:"Ген. договоры"},{id:"supAg",label:"Допсоглашения"},{id:"ttn",label:"ТТН"},{id:"esf",label:"ЭСЧФ"},{id:"consentBki",label:"Согласия БКИ"},{id:"consentOeb",label:"Согласия ОЭБ"},{id:"consentPd",label:"Согласия ПД"}];
+  const typeLabels={contract:"Ген. договор",consent:"Согласие",consentBki:"Согласие БКИ",consentOeb:"Согласие ОЭБ",consentPd:"Согласие ПД",supAg:"Допсоглашение",ttn:"ТТН",act:"Акт ВР",esf:"ЭСЧФ",notify:"Уведомление",report:"Отчётность",profile:"Анкета"};
+  const typeIcons={contract:Shield,consent:CheckCircle,consentBki:Search,consentOeb:Shield,consentPd:Users,supAg:Gavel,esf:Receipt,ttn:FileSpreadsheet,act:CheckCircle,notify:Send,report:BarChart,profile:CircleDot};
+  const tabs=[{id:"all",label:"Все",count:allDocs.length},{id:"contract",label:"Ген. договоры"},{id:"supAg",label:"Допсоглашения"},{id:"ttn",label:"ТТН"},{id:"esf",label:"ЭСЧФ"},{id:"consentBki",label:"Согласия БКИ"},{id:"consentOeb",label:"Согласия ОЭБ"},{id:"consentPd",label:"Согласия ПД"},{id:"report",label:"Отчётность"},{id:"profile",label:"Анкета"}];
   const pendingCount=allDocs.filter(d=>getStatus(d)==="pending").length;
 
   const filtered=allDocs.filter(d=>{
@@ -1552,7 +1573,7 @@ const CrDocuments = ({setActive,setInitialThread}) => {
 
     <div className="flex flex-wrap items-center gap-3 mb-4">
       <div className="flex flex-wrap gap-1.5">{tabs.map(t=>{const cnt=allDocs.filter(d=>t.id==="all"?true:d.type===t.id).length;return <button key={t.id} onClick={()=>setTab(t.id)} className={`px-3 py-1.5 rounded-xl text-xs font-medium transition-colors ${tab===t.id?"text-white":"text-slate-500 bg-slate-50"}`} style={tab===t.id?{background:B.accent}:undefined}>{t.label} ({cnt})</button>})}</div>
-      <div className="relative ml-auto"><Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"/><input value={docSearch} onChange={e=>setDocSearch(e.target.value)} placeholder="Поиск..." className="pl-9 pr-3 py-2 w-56 text-sm rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-200"/></div>
+      <div className="flex items-center gap-3 ml-auto"><div className="relative"><Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"/><input value={docSearch} onChange={e=>setDocSearch(e.target.value)} placeholder="Поиск..." className="pl-9 pr-3 py-2 w-56 text-sm rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-200"/></div><Btn icon={Upload} onClick={()=>{setShowUpload(true);setUploadType("");setUploadDeal("");setUploadFile(null);setUploadDesc("");window.scrollTo(0,0)}}>Загрузить документ</Btn></div>
     </div>
     <div className="flex flex-wrap items-center gap-3 mb-4">
       <div className="flex gap-1.5">{[["all","Все статусы"],["pending","На подписании"],["signed","Подписаны"]].map(([v,l])=><button key={v} onClick={()=>setStatusFilter(v)} className={`px-2.5 py-1 rounded-lg text-xs font-medium ${statusFilter===v?"text-white":"text-slate-500 bg-slate-50"}`} style={statusFilter===v?{background:B.accent}:undefined}>{l}</button>)}</div>
@@ -1562,7 +1583,25 @@ const CrDocuments = ({setActive,setInitialThread}) => {
 
     {selectedDocs.size>0&&<div className="sticky top-0 z-30 bg-white py-3 px-5 mb-3 rounded-xl border shadow-md flex items-center justify-between" style={{borderColor:B.accent}}><span className="text-sm font-medium" style={{color:B.t1}}>Выбрано: {selectedDocs.size} документов</span><div className="flex gap-2"><Btn size="sm" icon={signingDoc==="bulk"?Loader2:Pen} disabled={!!signingDoc} onClick={handleBulkSign}>Подписать ЭЦП</Btn><Btn size="sm" variant="secondary" icon={Download} onClick={()=>setToast({msg:`${selectedDocs.size} документов скачано (ZIP)`,type:"info"})}>Скачать ZIP</Btn><button onClick={()=>setSelectedDocs(new Set())} className="p-1.5 rounded hover:bg-slate-100"><X size={14} className="text-slate-400"/></button></div></div>}
 
-    <Card className="overflow-hidden"><div className="overflow-x-auto"><table className="w-full text-sm"><thead><tr className="text-xs text-left border-b border-slate-100" style={{color:B.t3,background:"#FAFBFC"}}><th className="px-3 py-3 w-8"><input type="checkbox" checked={selectedDocs.size===filtered.length&&filtered.length>0} onChange={toggleAll} className="rounded"/></th><th className="px-3 py-3 font-medium">Документ</th><th className="px-3 py-3 font-medium">Тип</th><th className="px-3 py-3 font-medium">Привязка</th><th className="px-3 py-3 font-medium">Контрагент</th><th className="px-3 py-3 font-medium">Дата</th><th className="px-3 py-3 font-medium text-center">Статус</th><th className="px-3 py-3 font-medium text-center">Действия</th></tr></thead>
+    {groupByDeal?<><div className="flex gap-2 mb-4">{[["all","Все группы"],["gd","Ген. договоры"],["onboarding","Онбординг"],["deals","Уступки"],["reports","Отчётность"]].map(([v,l])=><button key={v} onClick={()=>setGroupFilter(v)} className={`px-3 py-1.5 rounded-xl text-xs font-medium transition-colors ${groupFilter===v?"text-white":"text-slate-500 bg-slate-50"}`} style={groupFilter===v?{background:B.accent}:undefined}>{l}</button>)}</div>
+    <Card className="overflow-hidden"><div className="divide-y divide-slate-100">{Object.entries(filtered.reduce((acc,doc)=>{const k=doc.dealId;(acc[k]=acc[k]||[]).push(doc);return acc},{}))
+      .filter(([dealId])=>{if(groupFilter==="all")return true;if(groupFilter==="gd")return dealId.startsWith("ГД");if(groupFilter==="onboarding")return dealId==="Онбординг";if(groupFilter==="deals")return dealId.startsWith("УС-");if(groupFilter==="reports")return dealId==="Отчётность"||dealId==="Актуализация";return true}).map(([dealId,docs])=>{const isOpen=selectedDocs.has("group-"+dealId);return <div key={dealId}>
+      <div className="px-5 py-3 flex items-center gap-3 cursor-pointer hover:bg-slate-50 transition-colors" onClick={()=>setSelectedDocs(p=>{const n=new Set(p);const k="group-"+dealId;n.has(k)?n.delete(k):n.add(k);return n})}>
+        {isOpen?<ChevronDown size={14} style={{color:B.accent}}/>:<ChevronRight size={14} style={{color:B.t3}}/>}
+        <span className="text-xs font-bold" style={{color:B.accent,fontFamily:"'JetBrains Mono',monospace"}}>{dealId}</span>
+        <span className="text-xs" style={{color:B.t3}}>{docs[0]?.buyer||docs[0]?.supplier||"—"} · {docs.length} док.</span>
+        {docs[0]?.amount>0&&<span className="text-xs font-medium" style={{color:B.t1}}>{fmtByn(docs[0].amount)}</span>}
+        <div className="ml-auto flex gap-1"><button onClick={e=>{e.stopPropagation();setToast({msg:"Пакет скачан",type:"info"})}} className="text-xs font-medium flex items-center gap-1 px-2 py-1 rounded-lg hover:bg-slate-100" style={{color:B.accent}}><Download size={11}/>Скачать все</button></div>
+      </div>
+      {isOpen&&<div className="px-5 pb-3"><div className="ml-5 space-y-1">{docs.map((doc,i)=>{const TIcon=typeIcons[doc.type]||FileText;const st=getStatus(doc);return <div key={i} className="flex items-center gap-3 py-1.5 text-xs cursor-pointer hover:bg-slate-50 rounded-lg px-2 -mx-2" onClick={()=>setViewDoc(doc)}>
+        <TIcon size={13} style={{color:B.accent}}/><span className="font-medium flex-1" style={{color:B.accent}}>{doc.name}</span>
+        <span className="px-1.5 py-0.5 rounded bg-slate-100 text-[10px]" style={{color:B.t2}}>{typeLabels[doc.type]}</span>
+        {st==="signed"?<span className="inline-flex items-center gap-1 text-[10px]" style={{color:B.green}}><Shield size={8}/>ЭЦП</span>:st==="uploaded"?<span className="text-[10px]" style={{color:B.accent}}>Загружен</span>:<span className="text-[10px]" style={{color:B.yellow}}>Ожидает</span>}
+        <button onClick={e=>{e.stopPropagation();setToast({msg:"Скачан",type:"info"})}} className="p-1 rounded hover:bg-slate-100"><Download size={11} className="text-slate-400"/></button>
+      </div>})}</div></div>}
+    </div>})}</div></Card></>
+
+    :<Card className="overflow-hidden"><div className="overflow-x-auto"><table className="w-full text-sm"><thead><tr className="text-xs text-left border-b border-slate-100" style={{color:B.t3,background:"#FAFBFC"}}><th className="px-3 py-3 w-8"><input type="checkbox" checked={selectedDocs.size===filtered.length&&filtered.length>0} onChange={toggleAll} className="rounded"/></th><th className="px-3 py-3 font-medium">Документ</th><th className="px-3 py-3 font-medium">Тип</th><th className="px-3 py-3 font-medium">Привязка</th><th className="px-3 py-3 font-medium">Контрагент</th><th className="px-3 py-3 font-medium">Дата</th><th className="px-3 py-3 font-medium text-center">Статус</th><th className="px-3 py-3 font-medium text-center">Действия</th></tr></thead>
     <tbody>{filtered.map(doc=>{const TIcon=typeIcons[doc.type]||FileText;const st=getStatus(doc);return <tr key={doc.id} className="border-b border-slate-50 hover:bg-slate-50 transition-colors">
       <td className="px-3 py-2.5"><input type="checkbox" checked={selectedDocs.has(doc.id)} onChange={()=>toggleDoc(doc.id)} className="rounded"/></td>
       <td className="px-3 py-2.5 cursor-pointer" onClick={()=>setViewDoc(doc)}><div className="flex items-center gap-2"><TIcon size={13} style={{color:B.accent}}/><span className="font-medium text-xs hover:underline" style={{color:B.accent}}>{doc.name}</span></div></td>
@@ -1570,9 +1609,44 @@ const CrDocuments = ({setActive,setInitialThread}) => {
       <td className="px-3 py-2.5 text-xs" style={{fontFamily:"'JetBrains Mono',monospace",color:B.t2}}>{doc.dealId}</td>
       <td className="px-3 py-2.5 text-xs" style={{color:B.t1}}>{doc.buyer}</td>
       <td className="px-3 py-2.5 text-xs" style={{color:B.t2}}>{doc.date}</td>
-      <td className="px-3 py-2.5 text-center">{st==="signed"?<span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px]" style={{background:B.greenL,color:B.green}}><Shield size={9}/>ЭЦП</span>:<span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px]" style={{background:B.yellowL,color:B.yellow}}><Loader2 size={9}/>На подп.</span>}</td>
+      <td className="px-3 py-2.5 text-center">{st==="signed"?<span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px]" style={{background:B.greenL,color:B.green}}><Shield size={9}/>ЭЦП</span>:st==="uploaded"?<span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px]" style={{background:B.accentL,color:B.accent}}><Upload size={9}/>Загружен</span>:<span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px]" style={{background:B.yellowL,color:B.yellow}}><Loader2 size={9}/>На подп.</span>}</td>
       <td className="px-3 py-2.5 text-center"><div className="flex items-center justify-center gap-1">{st==="pending"&&<button onClick={()=>handleSign(doc.id)} className="px-2 py-0.5 rounded-lg text-[10px] font-medium text-white" style={{background:B.accent}}>ЭЦП</button>}<button onClick={()=>setToast({msg:"Скачан",type:"info"})} className="p-1 rounded hover:bg-slate-100"><Download size={12} className="text-slate-400"/></button><button onClick={()=>{setInitialThread?.(doc.dealId);setActive("cr-messages")}} className="flex items-center gap-1 px-1.5 py-0.5 rounded-lg text-[10px] font-medium hover:bg-blue-50" style={{color:B.accent}}><MessageCircle size={10}/>Обсудить</button></div></td>
-    </tr>})}</tbody></table></div></Card>
+    </tr>})}</tbody></table></div></Card>}
+
+    <Modal open={showUpload} onClose={()=>setShowUpload(false)} title="Загрузить документ">
+      <div className="space-y-4 mb-5">
+        <div><label className="block text-xs font-medium mb-1.5" style={{color:B.t3}}>Тип документа</label>
+          <select value={uploadType} onChange={e=>setUploadType(e.target.value)} className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200">
+            <option value="">Выберите тип...</option>
+            <option value="ttn">ТТН (товарно-транспортная накладная)</option>
+            <option value="act">Акт выполненных работ</option>
+            <option value="esf">ЭСЧФ (электронный счёт-фактура)</option>
+            <option value="report">Квартальная отчётность (баланс / P&L)</option>
+            <option value="consent">Согласие (БКИ / ОЭБ / ПД)</option>
+            <option value="other">Иной документ</option>
+          </select>
+        </div>
+        {(uploadType==="ttn"||uploadType==="act"||uploadType==="esf")&&<div><label className="block text-xs font-medium mb-1.5" style={{color:B.t3}}>Привязка к уступке</label>
+          <select value={uploadDeal} onChange={e=>setUploadDeal(e.target.value)} className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200">
+            <option value="">Выберите уступку...</option>
+            {CR_DEALS.map(d=><option key={d.id} value={d.id}>{d.id} · {BUYERS.find(b=>b.id===d.buyerId)?.name} · {fmtByn(d.amount)}</option>)}
+          </select>
+        </div>}
+        {uploadType==="report"&&<div className="rounded-xl p-3" style={{background:B.accentL}}><div className="text-xs" style={{color:B.t2}}>Загрузите бухгалтерский баланс или P&L. Формат: PDF.</div></div>}
+        {uploadType==="other"&&<><div><label className="block text-xs font-medium mb-1.5" style={{color:B.t3}}>Название документа</label><input value={uploadDesc} onChange={e=>setUploadDesc(e.target.value)} placeholder="Например: Справка из налоговой" className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200"/></div>
+        <div><label className="block text-xs font-medium mb-1.5" style={{color:B.t3}}>Привязка (необязательно)</label><select value={uploadDeal} onChange={e=>setUploadDeal(e.target.value)} className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200"><option value="">Без привязки (общий документ)</option><option value="Онбординг">Онбординг</option><option value="Актуализация">Актуализация данных</option>{CR_DEALS.map(d=><option key={d.id} value={d.id}>{d.id} · {BUYERS.find(b=>b.id===d.buyerId)?.name}</option>)}</select></div></>}
+        <div><label className="block text-xs font-medium mb-1.5" style={{color:B.t3}}>Файл (PDF)</label>
+          <div className="rounded-xl border-2 border-dashed border-slate-200 p-6 text-center cursor-pointer hover:border-slate-300 transition-colors" onClick={()=>setUploadFile({name:'Документ.pdf',size:'245 KB'})}>
+            {uploadFile?<div className="flex items-center justify-center gap-2"><CheckCircle size={16} style={{color:B.green}}/><span className="text-sm font-medium" style={{color:B.green}}>{uploadFile.name}</span><button onClick={e=>{e.stopPropagation();setUploadFile(null)}} className="p-0.5 rounded hover:bg-slate-100"><X size={14} className="text-slate-400"/></button></div>
+            :<div><Upload size={24} className="mx-auto mb-2 text-slate-300"/><div className="text-sm" style={{color:B.t3}}>Нажмите для выбора файла</div><div className="text-xs mt-1" style={{color:B.t3}}>PDF, до 10 МБ</div></div>}
+          </div>
+        </div>
+      </div>
+      <div className="flex gap-3">
+        <Btn className="flex-1" icon={Upload} disabled={!uploadType||!uploadFile||((uploadType==="ttn"||uploadType==="act"||uploadType==="esf")&&!uploadDeal)||(uploadType==="other"&&!uploadDesc.trim())} onClick={()=>{setShowUpload(false);setToast({msg:'Документ загружен',type:'success'})}}>Загрузить</Btn>
+        <Btn variant="secondary" onClick={()=>setShowUpload(false)}>Отмена</Btn>
+      </div>
+    </Modal>
   </div>;
 };
 
@@ -1641,118 +1715,111 @@ const CrFinance = ({setActive}) => {
 // ═══ DEBTOR: DOCUMENTS (full — 3 zones, enhanced UX) ═════
 const DbDocuments = ({setActive,setInitialThread}) => {
   const [tab,setTab]=useState("all");const [toast,setToast]=useState(null);
-  const [datePreset,setDatePreset]=useState("all");const [dateFrom,setDateFrom]=useState("");const [dateTo,setDateTo]=useState("");
-  const [supplierFilter,setSupplierFilter]=useState("all");const [viewDoc,setViewDoc]=useState(null);
-  const [signingDoc,setSigningDoc]=useState(null);const [confirmedNotifs,setConfirmedNotifs]=useState(new Set());
-  const [activeZone,setActiveZone]=useState("zone-confirm");
+  const [docSearch,setDocSearch]=useState("");
+  const [viewDoc,setViewDoc]=useState(null);const [signingDoc,setSigningDoc]=useState(null);
+  const [signedDocs,setSignedDocs]=useState(new Set());
+  const [selectedDocs,setSelectedDocs]=useState(new Set());
+  const [statusFilter,setStatusFilter]=useState("all");
+  const [groupFilter,setGroupFilter]=useState("all");
   const [groupByDeal,setGroupByDeal]=useState(false);
-  const zoneRefs={confirm:useRef(null),contracts:useRef(null),registry:useRef(null)};
-  const scrollToZone=(id)=>{const map={confirm:zoneRefs.confirm,contracts:zoneRefs.contracts,registry:zoneRefs.registry};const ref=map[id];if(ref?.current)ref.current.scrollIntoView({behavior:"smooth",block:"start"});setActiveZone("zone-"+id)};
+  const [supplierFilter,setSupplierFilter]=useState("all");
 
-  const pendingNotifs=DB_DEALS.filter(d=>!d.confirmed).map(d=>{const sup=SUPPLIERS.find(s=>s.id===d.supplierId);return {id:`dn-${d.id}`,dealId:d.id,supplier:sup?.name||"",date:d.notifyDate,amount:d.amount,product:d.product,dueDate:d.dueDate,daysLeft:d.daysLeft,content:`Ваш поставщик ${sup?.name} уступил требование по поставке на сумму ${fmtByn(d.amount)} банку ЗАО «Нео Банк Азия».\n\nЭто означает, что оплату за эту поставку нужно перечислить на счёт банка, а не поставщику.\n\nРеквизиты для оплаты:\nПолучатель: ЗАО «Нео Банк Азия»\nР/с: BY20 NEOB 3819 0000 0001 2345\nБИК: NEOBBY2X`}});
-  const pendingUnconfirmed=pendingNotifs.filter(n=>!confirmedNotifs.has(n.id));
-  const handleConfirmNotif=(id)=>{setSigningDoc(id);setTimeout(()=>{setConfirmedNotifs(prev=>{const n=new Set(prev);n.add(id);return n});setSigningDoc(null);setToast({msg:"Получение подтверждено ЭЦП",type:"success"})},1500)};
+  const handleSign=(id)=>{setSigningDoc(id);setTimeout(()=>{setSignedDocs(prev=>{const n=new Set(prev);n.add(id);return n});setSigningDoc(null);setToast({msg:"Документ подтверждён ЭЦП",type:"success"})},1500)};
+  const handleBulkSign=()=>{setSigningDoc("bulk");setTimeout(()=>{setSignedDocs(prev=>{const n=new Set(prev);selectedDocs.forEach(id=>n.add(id));return n});setSigningDoc(null);setSelectedDocs(new Set());setToast({msg:`${selectedDocs.size} документов подтверждено ЭЦП`,type:"success"})},1500)};
   const copyReqs=()=>{copyText("Получатель: ЗАО «Нео Банк Азия»\nР/с: BY20 NEOB 3819 0000 0001 2345\nБИК: NEOBBY2X");setToast({msg:"Реквизиты скопированы",type:"success"})};
 
-  const docs=DB_DEALS.flatMap(d=>{const sup=SUPPLIERS.find(s=>s.id===d.supplierId);const num=d.id.split("-")[2];return[
-    {dealId:d.id,supplierId:d.supplierId,supplier:sup?.name||"",date:d.notifyDate,type:"supAg",name:`ДС №${num} к ГД№1`,amount:d.amount,ecpStatus:"signed"},
-    {dealId:d.id,supplierId:d.supplierId,supplier:sup?.name||"",date:d.shipDate,type:"ttn",name:`ТТН_${num}.pdf`,amount:d.amount,ecpStatus:"signed"},
-    {dealId:d.id,supplierId:d.supplierId,supplier:sup?.name||"",date:d.shipDate,type:"esfchf",name:`ЭСЧФ_${num}.pdf`,amount:d.amount,ecpStatus:"signed"},
-    {dealId:d.id,supplierId:d.supplierId,supplier:sup?.name||"",date:d.notifyDate,type:"notify",name:`Уведомление_${num}`,amount:d.amount,ecpStatus:d.confirmed||confirmedNotifs.has(`dn-${d.id}`)?"signed":"pending"},
+  const dbContracts=SUPPLIERS.map((s,i)=>[
+    {id:`db-gd-${i+1}`,type:"contract",name:`Генеральный договор факторинга №${i+1}`,supplier:s.name,supplierId:s.id,dealId:`ГД-${i+1}`,date:"2026-01-15",amount:s.limit,ecpStatus:"signed"},
+    {id:`db-bki-${i+1}`,type:"consentBki",name:"Согласие на проверку в БКИ",supplier:s.name,supplierId:s.id,dealId:`ГД-${i+1}`,date:"2026-01-15",amount:0,ecpStatus:"signed"},
+    {id:`db-oeb-${i+1}`,type:"consentOeb",name:"Согласие на проверку ОЭБ",supplier:s.name,supplierId:s.id,dealId:`ГД-${i+1}`,date:"2026-01-15",amount:0,ecpStatus:"signed"},
+    {id:`db-pd-${i+1}`,type:"consentPd",name:"Согласие на обработку ПД",supplier:s.name,supplierId:s.id,dealId:`ГД-${i+1}`,date:"2026-01-15",amount:0,ecpStatus:"signed"},
+  ]).flat();
+
+  const dbDealDocs=DB_DEALS.flatMap(d=>{const sup=SUPPLIERS.find(s=>s.id===d.supplierId);const num=d.id.split("-")[2];return[
+    {id:`db-ds-${num}`,type:"supAg",name:`ДС №${num} к ГД№1`,supplier:sup?.name||"",supplierId:d.supplierId,dealId:d.id,date:d.notifyDate,amount:d.amount,ecpStatus:"signed"},
+    {id:`db-ttn-${num}`,type:"ttn",name:`ТТН_${num}.pdf`,supplier:sup?.name||"",supplierId:d.supplierId,dealId:d.id,date:d.shipDate,amount:d.amount,ecpStatus:"signed"},
+    {id:`db-esf-${num}`,type:"esf",name:`ЭСЧФ_${num}.pdf`,supplier:sup?.name||"",supplierId:d.supplierId,dealId:d.id,date:d.shipDate,amount:d.amount,ecpStatus:"signed"},
+    {id:`db-ntf-${num}`,type:"notify",name:`Уведомление_${num}`,supplier:sup?.name||"",supplierId:d.supplierId,dealId:d.id,date:d.notifyDate,amount:d.amount,ecpStatus:d.confirmed?"signed":"pending",dueDate:d.dueDate,daysLeft:d.daysLeft,product:d.product},
   ]});
-  const applyPreset=p=>{setDatePreset(p);const today=new Date("2026-03-22");if(p==="all"){setDateFrom("");setDateTo("");return}const to=today.toISOString().split("T")[0];setDateTo(to);if(p==="30d"){const d=new Date(today);d.setDate(d.getDate()-30);setDateFrom(d.toISOString().split("T")[0])}else if(p==="90d"){const d=new Date(today);d.setDate(d.getDate()-90);setDateFrom(d.toISOString().split("T")[0])}else if(p==="year"){setDateFrom(`${today.getFullYear()}-01-01`)}};
-  const tabs=[{id:"all",label:"Все",count:docs.length},{id:"supAg",label:"Допсоглашения"},{id:"ttn",label:"ТТН"},{id:"esfchf",label:"ЭСЧФ"},{id:"notify",label:"Уведомления"}];
-  const filtered=docs.filter(d=>{if(tab!=="all"&&d.type!==tab)return false;if(dateFrom&&d.date<dateFrom)return false;if(dateTo&&d.date>dateTo)return false;if(supplierFilter!=="all"&&d.supplierId!==Number(supplierFilter))return false;return true});
-  const typeLabels={supAg:"Допсоглашение",ttn:"ТТН",esfchf:"ЭСЧФ",notify:"Уведомление"};
 
+  const allDocs=[...dbContracts,...dbDealDocs];
+  const getStatus=(doc)=>signedDocs.has(doc.id)?"signed":doc.ecpStatus;
+  const typeLabels={contract:"Ген. договор",consentBki:"Согласие БКИ",consentOeb:"Согласие ОЭБ",consentPd:"Согласие ПД",supAg:"Допсоглашение",ttn:"ТТН",esf:"ЭСЧФ",notify:"Уведомление"};
+  const typeIcons={contract:Shield,consentBki:Search,consentOeb:Shield,consentPd:Users,supAg:Gavel,esf:Receipt,ttn:FileSpreadsheet,notify:Send};
+  const tabs=[{id:"all",label:"Все"},{id:"contract",label:"Ген. договоры"},{id:"supAg",label:"Допсоглашения"},{id:"ttn",label:"ТТН"},{id:"esf",label:"ЭСЧФ"},{id:"notify",label:"Уведомления"},{id:"consentBki",label:"Согласия БКИ"},{id:"consentOeb",label:"Согласия ОЭБ"},{id:"consentPd",label:"Согласия ПД"}];
+  const pendingCount=allDocs.filter(d=>getStatus(d)==="pending").length;
+  const uniqueSuppliers=[...new Map(allDocs.map(d=>[d.supplierId,d.supplier])).entries()];
+
+  const filtered=allDocs.filter(d=>{
+    if(docSearch){const q=docSearch.toLowerCase();if(!d.name.toLowerCase().includes(q)&&!d.dealId.toLowerCase().includes(q)&&!(d.supplier||"").toLowerCase().includes(q))return false}
+    if(tab!=="all"&&d.type!==tab)return false;
+    if(statusFilter==="pending"&&getStatus(d)!=="pending")return false;
+    if(statusFilter==="signed"&&getStatus(d)!=="signed")return false;
+    if(supplierFilter!=="all"&&d.supplierId!==Number(supplierFilter))return false;
+    return true;
+  });
+
+  const toggleDoc=(id)=>setSelectedDocs(p=>{const n=new Set(p);n.has(id)?n.delete(id):n.add(id);return n});
+  const toggleAll=()=>{if(selectedDocs.size===filtered.length&&filtered.length>0)setSelectedDocs(new Set());else setSelectedDocs(new Set(filtered.map(d=>d.id)))};
+
+  // Doc card view
+  if(viewDoc){const doc=viewDoc;const TIcon=typeIcons[doc.type]||FileText;const st=getStatus(doc);
   return <div>{toast&&<Toast message={toast.msg} type={toast.type} onClose={()=>setToast(null)}/>}
-    <PageHeader title="Документы" subtitle="Уведомления, договоры, графики платежей"/>
-
-    {/* Sticky zone nav */}
-    <div className="sticky top-0 z-20 bg-white py-3 mb-5 border-b border-slate-100 shadow-sm">
-      <div className="flex items-center gap-2">
-        <button onClick={()=>scrollToZone("confirm")} className={`inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold transition-all ${activeZone==="zone-confirm"?"text-white":"text-slate-500 bg-slate-50"}`} style={activeZone==="zone-confirm"?{background:pendingUnconfirmed.length>0?B.orange:B.green}:undefined}>
-          {pendingUnconfirmed.length>0?<><AlertCircle size={14}/>Требует подтверждения<span className="px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-white/20">{pendingUnconfirmed.length}</span></>:<><CheckCircle size={14}/>Всё подтверждено</>}
-        </button>
-        <button onClick={()=>scrollToZone("contracts")} className={`inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold transition-all ${activeZone==="zone-contracts"?"text-white":"text-slate-500 bg-slate-50"}`} style={activeZone==="zone-contracts"?{background:B.purple}:undefined}><Shield size={14}/>Договоры</button>
-        <button onClick={()=>scrollToZone("registry")} className={`inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold transition-all ${activeZone==="zone-registry"?"text-white":"text-slate-500 bg-slate-50"}`} style={activeZone==="zone-registry"?{background:B.purple}:undefined}><Archive size={14}/>Реестр<span className="opacity-60">({docs.length})</span></button>
+    <button onClick={()=>setViewDoc(null)} className="flex items-center gap-1.5 text-sm font-medium mb-4 hover:underline" style={{color:B.purple}}><ArrowLeft size={16}/>Назад к реестру</button>
+    <Card className="p-6 mb-5">
+      <div className="flex items-start justify-between">
+        <div className="flex items-center gap-4"><div className="w-12 h-12 rounded-xl flex items-center justify-center" style={{background:B.purpleL}}><TIcon size={22} style={{color:B.purple}}/></div>
+        <div><h1 className="text-xl font-bold" style={{color:B.t1}}>{doc.name}</h1><div className="text-sm mt-1" style={{color:B.t3}}>{typeLabels[doc.type]} · {doc.dealId} · {doc.supplier} · {doc.date}</div></div></div>
+        <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-sm font-medium" style={{background:st==="signed"?B.greenL:B.yellowL,color:st==="signed"?B.green:B.yellow}}>{st==="signed"?<><Shield size={12}/>Подтверждён</>:<><Loader2 size={12}/>Ожидает подтверждения</>}</span>
       </div>
+    </Card>
+    {doc.type==="notify"&&<Card className="p-5 mb-5" style={{background:"#F5F3FF"}}><div className="flex items-start gap-2"><Info size={16} style={{color:B.purple}} className="shrink-0 mt-0.5"/><div className="text-sm" style={{color:B.t1}}><strong>Что это значит?</strong> Ваш поставщик передал банку право получить оплату за вашу поставку. Теперь вы платите банку, а не поставщику.</div></div></Card>}
+    <Card className="p-6 mb-5"><div className="text-xs font-medium mb-2" style={{color:B.t3}}>Превью документа</div><div className="rounded-xl border-2 border-dashed border-slate-200 h-48 flex items-center justify-center" style={{background:"#FAFBFC"}}><div className="text-center"><FileText size={32} className="mx-auto mb-2 text-slate-300"/><div className="text-sm" style={{color:B.t3}}>{doc.name}</div></div></div></Card>
+    {doc.type==="notify"&&<Card className="p-5 mb-5" style={{borderColor:B.purple+"30"}}><div className="text-[10px] uppercase tracking-wider font-bold mb-2" style={{color:B.purple}}>Реквизиты для оплаты</div><div className="space-y-1.5 text-sm">{[["Получатель","ЗАО «Нео Банк Азия»"],["Р/с","BY20 NEOB 3819 0000 0001 2345"],["БИК","NEOBBY2X"]].map(([l,v],i)=><div key={i} className="flex justify-between"><span style={{color:B.t3}}>{l}</span><span className="font-medium" style={{color:B.t1,fontFamily:i>0?"'JetBrains Mono',monospace":undefined}}>{v}</span></div>)}</div><Btn size="sm" variant="secondary" className="w-full mt-3" icon={ExternalLink} onClick={copyReqs}>Скопировать реквизиты</Btn></Card>}
+    {(doc.type==="contract"||doc.type==="notify")&&<Card className="p-5 mb-5"><h3 className="text-sm font-bold mb-3" style={{color:B.t1}}>История подписания</h3><div className="space-y-2">{[{who:"Кредитор (поставщик)",date:doc.date,done:true},{who:"Банк — ЗАО «Нео Банк Азия»",date:doc.date,done:true},{who:"Должник — "+COMPANY.name,date:st==="signed"?doc.date:"—",done:st==="signed"}].map((s,i)=><div key={i} className="flex items-center gap-3 text-xs p-2 rounded-lg bg-slate-50">{s.done?<CheckCircle size={13} style={{color:B.green}}/>:<Loader2 size={13} style={{color:B.yellow}}/>}<span className="font-medium flex-1" style={{color:B.t1}}>{s.who}</span><span style={{color:B.t3}}>{s.date}</span></div>)}</div></Card>}
+    <div className="flex flex-wrap gap-2 mb-5">
+      {st==="pending"&&<Btn icon={signingDoc===doc.id?Loader2:Pen} disabled={!!signingDoc} onClick={()=>handleSign(doc.id)} style={{background:B.purple}}>{signingDoc===doc.id?"Подписание...":"Подтвердить ЭЦП"}</Btn>}
+      <Btn variant="secondary" icon={Download} onClick={()=>setToast({msg:`${doc.name} скачан`,type:"info"})}>Скачать PDF</Btn>
+      <Btn variant="secondary" icon={MessageCircle} onClick={()=>{setInitialThread?.(doc.dealId);setActive("db-messages")}}>Обсудить</Btn>
     </div>
+    {(doc.type==="supAg"||doc.type==="ttn"||doc.type==="esf"||doc.type==="notify")&&<Card className="p-5"><h3 className="text-sm font-bold mb-3" style={{color:B.t1}}>Связанные документы по {doc.dealId}</h3><div className="space-y-1.5">{allDocs.filter(rd=>rd.dealId===doc.dealId&&rd.id!==doc.id).map((rd,i)=>{const RI=typeIcons[rd.type]||FileText;return <div key={i} className="flex items-center gap-3 py-2 text-xs cursor-pointer hover:bg-slate-50 rounded-lg px-2 -mx-2" onClick={()=>setViewDoc(rd)}><RI size={13} style={{color:B.purple}}/><span className="font-medium flex-1" style={{color:B.t1}}>{rd.name}</span><span className="px-1.5 py-0.5 rounded bg-slate-100 text-[10px]" style={{color:B.t3}}>{typeLabels[rd.type]}</span><span className="text-[10px]" style={{color:getStatus(rd)==="signed"?B.green:B.yellow}}>{getStatus(rd)==="signed"?"ЭЦП ✓":"Ожидает"}</span></div>})}</div></Card>}
+  </div>}
 
-    {/* ZONE 1 */}
-    <div ref={zoneRefs.confirm}>
-    {pendingUnconfirmed.length>0?<Card className="mb-5 overflow-hidden" style={{borderColor:"#C4B5FD"}}>
-      <div className="h-1" style={{background:`linear-gradient(90deg,${B.purple},${B.orange})`}}/>
-      <div className="px-5 py-3 flex items-center gap-2" style={{background:B.purpleL}}><AlertCircle size={16} style={{color:B.purple}}/><span className="text-sm font-bold" style={{color:B.t1}}>Требуют подтверждения</span><span className="text-xs px-2 py-0.5 rounded-full font-bold text-white" style={{background:B.purple}}>{pendingUnconfirmed.length}</span></div>
-      <div className="px-5 py-3" style={{background:"#F5F3FF"}}><div className="flex items-start gap-2 text-xs" style={{color:B.t2}}><Info size={14} style={{color:B.purple}} className="shrink-0 mt-0.5"/><span>Ваш поставщик уступил банку право на оплату. Подтверждая, вы подтверждаете факт поставки и обязуетесь оплатить на счёт банка (не поставщику).</span></div></div>
-      <div className="divide-y divide-slate-50">{pendingUnconfirmed.map(n=><div key={n.id} className="px-5 py-4 flex items-center gap-4">
-        <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={{background:B.purpleL}}><Bell size={18} style={{color:B.purple}}/></div>
-        <div className="flex-1 min-w-0"><div className="text-sm font-semibold" style={{color:B.t1}}>Уведомление {n.dealId}</div><div className="text-xs mt-0.5" style={{color:B.t3}}>{n.supplier} · {fmtByn(n.amount)} · {n.date}</div></div>
-        <div className="flex items-center gap-2 shrink-0"><Btn size="sm" variant="secondary" icon={Eye} onClick={()=>setViewDoc(n)}>Просмотреть</Btn>{signingDoc===n.id?<span className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs" style={{color:B.purple}}><Loader2 size={13} className="animate-spin"/>Подписание...</span>:<Btn size="sm" icon={Pen} onClick={()=>handleConfirmNotif(n.id)} style={{background:B.purple}}>Подтвердить ЭЦП</Btn>}</div>
-      </div>)}</div>
-    </Card>:<Card className="mb-5 p-4" style={{background:B.greenL,borderColor:"#86EFAC"}}>
-      <div className="flex items-center gap-2"><CheckCircle size={18} style={{color:B.green}}/><div><span className="text-sm font-semibold" style={{color:B.green}}>Все уведомления подтверждены</span><div className="text-xs mt-0.5" style={{color:B.t3}}>Последнее: УС-2026-1001 · 05.03.2026 · Ближайший платёж: {fmtByn(DB_PAYMENTS[0]?.amount||0)} до {DB_PAYMENTS[0]?.dueDate||""}</div></div></div>
+  // List view
+  return <div>{toast&&<Toast message={toast.msg} type={toast.type} onClose={()=>setToast(null)}/>}
+    <PageHeader title="Документы" subtitle={`${allDocs.length} документов в системе`}/>
+
+    {pendingCount>0&&<Card className="p-4 mb-5 flex items-center justify-between" style={{background:"#F5F3FF",borderColor:"#C4B5FD"}}>
+      <div className="flex items-center gap-2"><AlertCircle size={16} style={{color:B.purple}}/><span className="text-sm font-bold" style={{color:B.t1}}>{pendingCount} уведомлени{pendingCount===1?"е":"я"} ожида{pendingCount===1?"ет":"ют"} подтверждения</span></div>
+      <Btn size="sm" icon={Pen} onClick={()=>{const pend=allDocs.filter(d=>getStatus(d)==="pending");setSelectedDocs(new Set(pend.map(d=>d.id)));handleBulkSign()}} style={{background:B.purple}}>Подтвердить все ({pendingCount})</Btn>
     </Card>}
+
+    <div className="flex flex-wrap items-center gap-3 mb-4">
+      <div className="flex flex-wrap gap-1.5">{tabs.map(t=>{const cnt=allDocs.filter(d=>d.type===t.id||t.id==="all").length;return <button key={t.id} onClick={()=>setTab(t.id)} className={`px-3 py-1.5 rounded-xl text-xs font-medium transition-colors ${tab===t.id?"text-white":"text-slate-500 bg-slate-50"}`} style={tab===t.id?{background:B.purple}:undefined}>{t.label} ({t.id==="all"?allDocs.length:allDocs.filter(d=>d.type===t.id).length})</button>})}</div>
+      <div className="relative ml-auto"><Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"/><input value={docSearch} onChange={e=>setDocSearch(e.target.value)} placeholder="Поиск..." className="pl-9 pr-3 py-2 w-56 text-sm rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-purple-200"/></div>
+    </div>
+    <div className="flex flex-wrap items-center gap-3 mb-4">
+      <div className="flex gap-1.5">{[["all","Все статусы"],["pending","Ожидают подтверждения"],["signed","Подтверждены"]].map(([v,l])=><button key={v} onClick={()=>setStatusFilter(v)} className={`px-2.5 py-1 rounded-lg text-xs font-medium ${statusFilter===v?"text-white":"text-slate-500 bg-slate-50"}`} style={statusFilter===v?{background:B.purple}:undefined}>{l}</button>)}</div>
+      <select value={supplierFilter} onChange={e=>setSupplierFilter(e.target.value)} className="px-2.5 py-1.5 rounded-lg border border-slate-200 text-xs"><option value="all">Все поставщики</option>{uniqueSuppliers.map(([id,name])=><option key={id} value={id}>{name}</option>)}</select>
+      <div className="flex items-center gap-2 ml-auto"><span className="text-xs" style={{color:B.t3}}>Группировка:</span><button onClick={()=>setGroupByDeal(!groupByDeal)} className="relative w-9 h-5 rounded-full transition-colors" style={{background:groupByDeal?B.purple:"#CBD5E1"}}><span className="absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-all" style={{left:groupByDeal?18:2}}/></button></div>
     </div>
 
-    {/* ZONE 2: Tree */}
-    <div ref={zoneRefs.contracts}>
-    <Card className="mb-5 overflow-hidden"><div className="px-5 py-3 border-b border-slate-100 flex items-center gap-2" style={{background:"#FAFBFC"}}><Shield size={16} style={{color:B.purple}}/><span className="text-sm font-bold" style={{color:B.t1}}><InfoTooltip text="Генеральный договор факторинга и согласия, подписанные при онбординге">Договоры и согласия</InfoTooltip></span></div>
-      <div className="p-5"><div className="relative">
-        <div className="rounded-xl border-2 p-5 border-l-4" style={{borderLeftColor:B.purple,borderColor:B.border}}>
-          <div className="flex items-start justify-between mb-2"><div><div className="text-base font-bold" style={{color:B.t1}}>Генеральный договор факторинга ГД №1</div><div className="text-xs mt-0.5" style={{color:B.t3}}>от 15.01.2026 · трёхсторонний · Вы — покупатель (должник)</div></div><span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold shrink-0" style={{background:B.greenL,color:B.green}}><CheckCircle size={12}/>Действующий</span></div>
-          <div className="grid grid-cols-3 gap-3 mb-4">{[["Банк","ЗАО «Нео Банк Азия»"],["Кредитор","По уступке поставщика"],["Срок","до 15.01.2027"]].map(([l,v],i)=><div key={i} className="rounded-lg p-2.5 bg-slate-50"><div className="text-[10px] uppercase tracking-wide" style={{color:B.t3}}>{l}</div><div className="text-xs font-medium mt-0.5" style={{color:B.t1}}>{v}</div></div>)}</div>
-          <Btn size="sm" variant="secondary" icon={Download} onClick={()=>setToast({msg:"ГД скачан",type:"info"})}>Скачать PDF</Btn>
-        </div>
-        <div className="ml-6 mt-0 relative"><div className="absolute left-0 top-0 bottom-4 w-px" style={{background:B.border}}/>
-          {[{name:"Согласие на проверку в БКИ",desc:"Разрешение запросить кредитную историю",date:"15.01.2026",icon:Search},{name:"Согласие на проверку ОЭБ",desc:"Разрешение на проверку службой безопасности",date:"15.01.2026",icon:Shield},{name:"Согласие на обработку ПД",desc:"Обработка персональных данных",date:"15.01.2026",icon:Users}].map((c,i)=><div key={i} className="relative flex items-start gap-3 pl-6 py-2.5">
-            <div className="absolute left-0 top-1/2 w-6 h-px" style={{background:B.border}}/><div className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0" style={{background:B.greenL}}><c.icon size={13} style={{color:B.green}}/></div>
-            <div className="flex-1"><div className="text-xs font-medium" style={{color:B.t1}}>{c.name}</div><div className="text-[10px]" style={{color:B.t3}}>{c.desc}</div><div className="text-[10px]" style={{color:B.green}}>ЭЦП {c.date} ✓</div></div>
-          </div>)}
-        </div>
-      </div></div>
-    </Card>
-    </div>
+    {selectedDocs.size>0&&<div className="sticky top-0 z-30 bg-white py-3 px-5 mb-3 rounded-xl border shadow-md flex items-center justify-between" style={{borderColor:B.purple}}><span className="text-sm font-medium" style={{color:B.t1}}>Выбрано: {selectedDocs.size}</span><div className="flex gap-2"><Btn size="sm" icon={signingDoc==="bulk"?Loader2:Pen} disabled={!!signingDoc} onClick={handleBulkSign} style={{background:B.purple}}>Подтвердить ЭЦП</Btn><Btn size="sm" variant="secondary" icon={Download} onClick={()=>setToast({msg:`${selectedDocs.size} документов скачано (ZIP)`,type:"info"})}>Скачать ZIP</Btn><button onClick={()=>setSelectedDocs(new Set())} className="p-1.5 rounded hover:bg-slate-100"><X size={14} className="text-slate-400"/></button></div></div>}
 
-    {/* ZONE 3 */}
-    <div ref={zoneRefs.registry}>
-    <Card className="overflow-hidden"><div className="px-5 py-3 border-b border-slate-100 flex items-center gap-2" style={{background:"#FAFBFC"}}><Archive size={16} style={{color:B.purple}}/><span className="text-sm font-bold" style={{color:B.t1}}>Реестр документов</span></div>
-      <div className="px-5 pt-4 flex flex-wrap gap-2">{tabs.map(t=><button key={t.id} onClick={()=>setTab(t.id)} className={`px-3 py-1.5 rounded-xl text-xs font-medium ${tab===t.id?"text-white":"text-slate-500 bg-slate-50"}`} style={tab===t.id?{background:B.purple}:undefined}>{t.label}</button>)}</div>
-      <div className="px-5 py-3 flex flex-wrap items-center gap-3">
-        <div className="flex gap-1.5">{[["all","Все"],["30d","30д"],["90d","90д"]].map(([v,l])=><button key={v} onClick={()=>applyPreset(v)} className={`px-2.5 py-1 rounded-lg text-xs font-medium ${datePreset===v?"text-white":"text-slate-500 bg-slate-50"}`} style={datePreset===v?{background:B.purple}:undefined}>{l}</button>)}</div>
-        <select value={supplierFilter} onChange={e=>setSupplierFilter(e.target.value)} className="px-2.5 py-1.5 rounded-lg border border-slate-200 text-xs"><option value="all">Все поставщики</option>{SUPPLIERS.map(s=><option key={s.id} value={s.id}>{s.name}</option>)}</select>
-        <div className="ml-auto flex items-center gap-2"><span className="text-xs" style={{color:B.t3}}>Группировка:</span><button onClick={()=>setGroupByDeal(!groupByDeal)} className="relative w-9 h-5 rounded-full transition-colors" style={{background:groupByDeal?B.purple:"#CBD5E1"}}><span className="absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-all" style={{left:groupByDeal?18:2}}/></button></div>
-      </div>
-      {groupByDeal?<div className="divide-y divide-slate-100">{Object.entries(filtered.reduce((acc,doc)=>{(acc[doc.dealId]=acc[doc.dealId]||[]).push(doc);return acc},{})).map(([dealId,ddocs])=><div key={dealId} className="px-5 py-3">
-        <div className="flex items-center justify-between mb-2"><div className="flex items-center gap-2"><span className="text-xs font-bold" style={{color:B.purple,fontFamily:"'JetBrains Mono',monospace"}}>{dealId}</span><span className="text-xs" style={{color:B.t3}}>· {ddocs[0]?.supplier} · {fmtByn(ddocs[0]?.amount||0)}</span></div><button onClick={()=>setToast({msg:"Пакет скачан",type:"info"})} className="text-xs font-medium flex items-center gap-1 px-2 py-1 rounded-lg hover:bg-slate-100" style={{color:B.purple}}><Download size={11}/>Скачать все</button></div>
-        <div className="ml-4 space-y-1">{ddocs.map((doc,i)=>{const TIcon={supAg:Gavel,ttn:FileSpreadsheet,esfchf:Receipt,notify:Send}[doc.type]||FileText;return <div key={i} className="flex items-center gap-3 py-1.5 text-xs">
-          <TIcon size={13} style={{color:B.purple}}/><span className="font-medium" style={{color:B.purple}}>{doc.name}</span><span className="px-1.5 py-0.5 rounded bg-slate-100 text-[10px]" style={{color:B.t2}}>{typeLabels[doc.type]}</span><span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px]" style={{background:doc.ecpStatus==="signed"?B.greenL:B.yellowL,color:doc.ecpStatus==="signed"?B.green:B.yellow}}>{doc.ecpStatus==="signed"?<Fragment><Shield size={8}/>ЭЦП</Fragment>:"Ожидает"}</span>
-          <div className="ml-auto flex gap-1"><button onClick={()=>setToast({msg:"Скачан",type:"info"})} className="p-1 rounded hover:bg-slate-100"><Download size={12} className="text-slate-400"/></button><button onClick={()=>{setInitialThread?.(doc.dealId);setActive("db-messages")}} className="flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[9px] font-medium hover:bg-purple-50" style={{color:B.purple}}><MessageCircle size={9}/>Обсудить</button></div>
-        </div>})}</div>
-      </div>)}</div>
-
-      :<div className="overflow-x-auto"><table className="w-full text-sm "><thead><tr className="text-xs text-left border-b border-slate-100" style={{color:B.t3,background:"#FAFBFC"}}><th className="px-5 py-3 font-medium">Документ</th><th className="px-3 py-3 font-medium">Тип</th><th className="px-3 py-3 font-medium">Поставщик</th><th className="px-3 py-3 font-medium">Дата</th><th className="px-3 py-3 font-medium text-right">Сумма</th><th className="px-3 py-3 font-medium text-center">ЭЦП</th><th className="px-3 py-3 font-medium text-center"/></tr></thead>
-      <tbody>{filtered.map((doc,i)=><TableRow key={i}><td className="px-5 py-3"><div className="flex items-center gap-2"><FileText size={14} style={{color:B.purple}}/><span className="font-medium text-sm" style={{color:B.purple}}>{doc.name}</span></div></td><td className="px-3 py-3"><span className="px-2 py-0.5 rounded-lg text-xs bg-slate-100" style={{color:B.t2}}>{typeLabels[doc.type]}</span></td><td className="px-3 py-3" style={{color:B.t1}}>{doc.supplier}</td><td className="px-3 py-3" style={{color:B.t2}}>{doc.date}</td><td className="px-3 py-3 text-right font-medium">{fmtByn(doc.amount)}</td><td className="px-3 py-3 text-center">{doc.ecpStatus==="signed"?<span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs" style={{background:B.greenL,color:B.green}}><Shield size={10}/>ЭЦП</span>:<span className="text-xs" style={{color:B.yellow}}>Ожидает</span>}</td>
-      <td className="px-3 py-3 text-center"><div className="flex items-center justify-center gap-1"><button onClick={()=>setToast({msg:"Скачан",type:"info"})} className="p-1.5 rounded-lg hover:bg-slate-100"><Download size={14} className="text-slate-400"/></button><button onClick={()=>{setInitialThread?.(doc.dealId);setActive("db-messages")}} className="flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-medium hover:bg-purple-50" style={{color:B.purple}}><MessageCircle size={10}/>Обсудить</button></div></td></TableRow>)}</tbody></table></div>}
-    </Card>
-    </div>
-
-    {/* Enhanced notification view */}
-    <Modal open={!!viewDoc} onClose={()=>setViewDoc(null)} title="Уведомление об уступке" wide>
-      {viewDoc&&<div>
-        <div className="text-center mb-4"><div className="text-lg font-bold" style={{color:B.t1}}>УВЕДОМЛЕНИЕ ОБ УСТУПКЕ</div><div className="text-xs" style={{color:B.t3}}>{viewDoc.dealId}</div></div>
-        <div className="rounded-xl p-4 mb-4" style={{background:"#F5F3FF"}}><div className="flex items-start gap-2"><Info size={16} style={{color:B.purple}} className="shrink-0 mt-0.5"/><div className="text-xs" style={{color:B.t1}}><strong>Что это значит?</strong> Ваш поставщик передал банку право получить оплату за вашу поставку. Теперь вы платите банку, а не поставщику.</div></div></div>
-        <div className="grid grid-cols-2 gap-3 mb-4">{[["Поставщик",viewDoc.supplier],["Товар",viewDoc.product||"—"],["Сумма",fmtByn(viewDoc.amount)],["Срок оплаты",`${viewDoc.dueDate||"—"} (${viewDoc.daysLeft||0} дн.)`]].map(([l,v],i)=><div key={i} className="rounded-lg p-3 bg-slate-50"><div className="text-[10px] uppercase tracking-wide" style={{color:B.t3}}>{l}</div><div className="text-sm font-medium mt-0.5" style={{color:B.t1}}>{v}</div></div>)}</div>
-        <div className="rounded-xl border-2 p-4 mb-4" style={{borderColor:B.purple+"30"}}><div className="text-[10px] uppercase tracking-wider font-bold mb-2" style={{color:B.purple}}>Реквизиты для оплаты</div>
-          <div className="space-y-1.5 text-sm">{[["Получатель","ЗАО «Нео Банк Азия»"],["Р/с","BY20 NEOB 3819 0000 0001 2345"],["БИК","NEOBBY2X"]].map(([l,v],i)=><div key={i} className="flex justify-between"><span style={{color:B.t3}}>{l}</span><span className="font-medium" style={{color:B.t1,fontFamily:i>0?"'JetBrains Mono',monospace":undefined}}>{v}</span></div>)}</div>
-          <Btn size="sm" variant="secondary" className="w-full mt-3" icon={ExternalLink} onClick={copyReqs}>Скопировать реквизиты</Btn>
-        </div>
-        <div className="rounded-xl border border-slate-200 p-3 mb-4"><div className="text-[10px] uppercase tracking-wider font-bold mb-2" style={{color:B.t3}}>Документы по уступке {viewDoc.dealId}</div>{[{icon:Gavel,name:`ДС №${viewDoc.dealId?.split("-")[2]||""}`,type:"Допсоглашение"},{icon:FileSpreadsheet,name:`ТТН_${viewDoc.dealId?.split("-")[2]||""}.pdf`,type:"ТТН"},{icon:Receipt,name:`ЭСЧФ_${viewDoc.dealId?.split("-")[2]||""}.pdf`,type:"ЭСЧФ"},{icon:Send,name:`Уведомление_${viewDoc.dealId?.split("-")[2]||""}`,type:"Уведомление"}].map((rd,i)=><div key={i} className="flex items-center gap-3 py-1.5 text-xs"><rd.icon size={13} style={{color:B.purple}}/><span className="font-medium flex-1" style={{color:B.t1}}>{rd.name}</span><span className="px-1.5 py-0.5 rounded bg-slate-100 text-[10px]" style={{color:B.t3}}>{rd.type}</span><span className="inline-flex items-center gap-1 text-[10px]" style={{color:B.green}}><Shield size={8}/>ЭЦП</span><button onClick={()=>setToast({msg:`${rd.name} скачан`,type:"info"})} className="p-1 rounded hover:bg-slate-100"><Download size={12} className="text-slate-400"/></button></div>)}</div>
-        <div className="flex gap-2">{!confirmedNotifs.has(viewDoc.id)&&<Btn icon={signingDoc===viewDoc.id?Loader2:Pen} disabled={!!signingDoc} onClick={()=>handleConfirmNotif(viewDoc.id)} style={{background:B.purple}}>{signingDoc===viewDoc.id?"Подписание...":"Подтвердить получение (ЭЦП)"}</Btn>}<Btn variant="secondary" icon={Download} onClick={()=>setToast({msg:"Скачано",type:"info"})}>Скачать PDF</Btn><Btn variant="ghost" icon={MessageCircle} onClick={()=>{const did=viewDoc?.dealId;setViewDoc(null);setInitialThread?.(did);setActive("db-messages")}}>Обсудить</Btn><Btn variant="ghost" onClick={()=>setViewDoc(null)}>Закрыть</Btn></div>
-      </div>}
-    </Modal>
+    <Card className="overflow-hidden"><div className="overflow-x-auto"><table className="w-full text-sm"><thead><tr className="text-xs text-left border-b border-slate-100" style={{color:B.t3,background:"#FAFBFC"}}><th className="px-3 py-3 w-8"><input type="checkbox" checked={selectedDocs.size===filtered.length&&filtered.length>0} onChange={toggleAll} className="rounded"/></th><th className="px-3 py-3 font-medium">Документ</th><th className="px-3 py-3 font-medium">Тип</th><th className="px-3 py-3 font-medium">Привязка</th><th className="px-3 py-3 font-medium">Поставщик</th><th className="px-3 py-3 font-medium">Дата</th><th className="px-3 py-3 font-medium text-center">Статус</th><th className="px-3 py-3 font-medium text-center">Действия</th></tr></thead>
+    <tbody>{filtered.map(doc=>{const TIcon=typeIcons[doc.type]||FileText;const st=getStatus(doc);return <tr key={doc.id} className="border-b border-slate-50 hover:bg-slate-50 transition-colors">
+      <td className="px-3 py-2.5"><input type="checkbox" checked={selectedDocs.has(doc.id)} onChange={()=>toggleDoc(doc.id)} className="rounded"/></td>
+      <td className="px-3 py-2.5 cursor-pointer" onClick={()=>setViewDoc(doc)}><div className="flex items-center gap-2"><TIcon size={13} style={{color:B.purple}}/><span className="font-medium text-xs hover:underline" style={{color:B.purple}}>{doc.name}</span></div></td>
+      <td className="px-3 py-2.5"><span className="px-2 py-0.5 rounded-lg text-[10px] bg-slate-100" style={{color:B.t2}}>{typeLabels[doc.type]}</span></td>
+      <td className="px-3 py-2.5 text-xs" style={{fontFamily:"'JetBrains Mono',monospace",color:B.t2}}>{doc.dealId}</td>
+      <td className="px-3 py-2.5 text-xs" style={{color:B.t1}}>{doc.supplier}</td>
+      <td className="px-3 py-2.5 text-xs" style={{color:B.t2}}>{doc.date}</td>
+      <td className="px-3 py-2.5 text-center">{st==="signed"?<span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px]" style={{background:B.greenL,color:B.green}}><Shield size={9}/>ЭЦП</span>:<span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px]" style={{background:B.yellowL,color:B.yellow}}><Loader2 size={9}/>Ожидает</span>}</td>
+      <td className="px-3 py-2.5 text-center"><div className="flex items-center justify-center gap-1">{st==="pending"&&<button onClick={()=>handleSign(doc.id)} className="px-2 py-0.5 rounded-lg text-[10px] font-medium text-white" style={{background:B.purple}}>ЭЦП</button>}<button onClick={()=>setToast({msg:"Скачан",type:"info"})} className="p-1 rounded hover:bg-slate-100"><Download size={12} className="text-slate-400"/></button><button onClick={()=>{setInitialThread?.(doc.dealId);setActive("db-messages")}} className="flex items-center gap-1 px-1.5 py-0.5 rounded-lg text-[10px] font-medium hover:bg-purple-50" style={{color:B.purple}}><MessageCircle size={10}/>Обсудить</button></div></td>
+    </tr>})}</tbody></table></div></Card>
   </div>;
 };
+
 
 const CrBuyers = ({setActive,setInitialThread}) => {
   const [filter,setFilter]=useState("all");
@@ -2466,7 +2533,8 @@ export default function App() {
     "cr-messages":<MessagesPage ctx="creditor" setActive={setActive} initialThread={initialThread} onNavigateDeal={id=>{setInitialExpandDeal(id)}}/>,
     "cr-support":<SupportPage ctx="creditor"/>,
     "cr-settings":<CrSettings dark={dark} setDark={setDark}/>,
-    "db-dashboard":<DbDashboard setActive={go}/>,
+    "db-tasks":<DbTasks setActive={go} setInitialThread={setInitialThread}/>,
+    "db-dashboard":<DbDashboard setActive={go} setInitialThread={setInitialThread}/>,
     "db-supplies":<DbSupplies setActive={setActive} setInitialThread={setInitialThread}/>,
     "db-payments":<DbPayments setActive={setActive} setInitialThread={setInitialThread}/>,
     "db-limit":<DbLimit/>,
