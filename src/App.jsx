@@ -177,7 +177,10 @@ const Toast = ({message,type="success",onClose}) => {
 
 const InfoTooltip = ({text,children}) => {
   const [show,setShow]=useState(false);
-  return <span className="relative inline-flex" onMouseEnter={()=>setShow(true)} onMouseLeave={()=>setShow(false)}>{children}{show&&<span className="absolute z-50 bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-2 rounded-xl text-xs text-white font-medium shadow-lg animate-fade-up" style={{background:B.t1,maxWidth:280,minWidth:120,whiteSpace:"normal",lineHeight:"1.5",textAlign:"center"}}>{text}<span className="absolute top-full left-1/2 -translate-x-1/2 w-2 h-2 rotate-45 -mt-1" style={{background:B.t1}}/></span>}</span>;
+  const ref=useRef(null);
+  const [pos,setPos]=useState({left:0,right:false});
+  const onEnter=()=>{setShow(true);if(ref.current){const r=ref.current.getBoundingClientRect();const overRight=r.left+140>window.innerWidth;setPos({right:overRight})}};
+  return <span className="relative inline-flex items-center gap-1">{children}<span ref={ref} className="inline-flex items-center justify-center w-4 h-4 rounded-full cursor-help shrink-0" style={{background:show?"#E2E8F0":"#F1F5F9"}} onMouseEnter={onEnter} onMouseLeave={()=>setShow(false)}><Info size={10} style={{color:show?B.t1:B.t3}}/></span>{show&&<span className="absolute z-[100] top-full mt-2 px-3 py-2 rounded-xl text-xs text-white font-medium shadow-lg" style={{background:B.t1,maxWidth:260,minWidth:140,whiteSpace:"normal",lineHeight:"1.5",textAlign:"left",right:pos.right?0:undefined,left:pos.right?undefined:0}}>{text}</span>}</span>;
 };
 
 const Skeleton = () => <div className="animate-pulse"><div className="grid grid-cols-4 gap-4 mb-6">{[1,2,3,4].map(i=><div key={i} className="h-24 rounded-2xl bg-slate-100"/>)}</div><div className="rounded-2xl bg-white border border-slate-100">{[1,2,3,4,5].map(i=><div key={i} className="flex gap-4 px-5 py-3.5 border-b border-slate-50"><div className="h-4 rounded bg-slate-100 flex-[2]"/><div className="h-4 rounded bg-slate-100 flex-[3]"/><div className="h-4 rounded bg-slate-50 flex-1"/></div>)}</div></div>;
@@ -353,7 +356,7 @@ const CrTasks = ({setActive,setInitialThread}) => {
   </div>;
 };
 
-const CrDashboard = ({setActive,setInitialThread}) => {
+const CrDashboard = ({setActive,setInitialThread,setInitialExpandDeal}) => {
   const activeDeals = CR_DEALS.filter(d=>d.status==="active"||d.status==="overdue");
   const activeSum = activeDeals.reduce((s,d)=>s+d.amount,0);
   const totalReceived = CR_DEALS.filter(d=>d.status!=="overdue").reduce((s,d)=>s+d.toReceive,0);
@@ -393,7 +396,7 @@ const CrDashboard = ({setActive,setInitialThread}) => {
     {/* Tasks — compact list */}
     <Card className="mb-5 overflow-hidden animate-slide-in">
       <div className="px-5 py-3 flex items-center justify-between border-b border-slate-100" style={{background:"#FAFBFC"}}>
-        <div className="flex items-center gap-2"><ClipboardList size={15} style={{color:B.accent}}/><span className="text-sm font-bold" style={{color:B.t1}}>Задачи</span><span className="px-2 py-0.5 rounded-full text-xs font-bold text-white" style={{background:B.red}}>3</span></div>
+        <div className="flex items-center gap-2"><ClipboardList size={15} style={{color:B.accent}}/><span className="text-sm font-bold" style={{color:B.t1}}><InfoTooltip text="Документы на подписание, ответы на сообщения, квартальная отчётность и другие действия, требующие вашего внимания">Задачи</InfoTooltip></span><span className="px-2 py-0.5 rounded-full text-xs font-bold text-white" style={{background:B.red}}>3</span></div>
         <button onClick={()=>setActive("cr-tasks")} className="text-xs font-medium hover:underline" style={{color:B.accent}}>Все задачи →</button>
       </div>
       <div className="divide-y divide-slate-50">
@@ -592,14 +595,14 @@ const CrDashboard = ({setActive,setInitialThread}) => {
       </div>
       <div className="h-3 rounded-full bg-slate-100 overflow-hidden mb-2"><div className="h-full rounded-full transition-all" style={{width:`${Math.round(BUYERS.filter(b=>b.status==="green").reduce((s,b)=>s+b.used,0)/BUYERS.filter(b=>b.status==="green").reduce((s,b)=>s+b.limit,0)*100)}%`,background:`linear-gradient(90deg, ${B.accent}, ${B.green})`}}/></div>
       <div className="text-sm mb-4" style={{color:B.t2}}>Использовано <strong style={{color:B.t1}}>{Math.round(BUYERS.filter(b=>b.status==="green").reduce((s,b)=>s+b.used,0)/BUYERS.filter(b=>b.status==="green").reduce((s,b)=>s+b.limit,0)*100)}%</strong> — {fmtByn(BUYERS.filter(b=>b.status==="green").reduce((s,b)=>s+b.used,0))} из {fmtByn(BUYERS.filter(b=>b.status==="green").reduce((s,b)=>s+b.limit,0))}</div>
-      <Btn className="w-full py-3 text-base" icon={Plus} onClick={()=>setActive("cr-deals")}>Создать новую уступку</Btn>
+      <Btn className="w-full py-3 text-base" icon={Plus} onClick={()=>setActive("cr-deals")}><InfoTooltip text="Уступите банку денежное требование к покупателю и получите финансирование за 3 рабочих дня">Создать новую уступку</InfoTooltip></Btn>
     </Card>
 
     {/* Active deals — waiting for money */}
     {(()=>{const pending=CR_DEALS.filter(d=>d.status==="active"||d.status==="pending");if(!pending.length)return null;return <Card className="p-5 mb-5 animate-fade-up">
-      <div className="flex items-center justify-between mb-3"><div className="flex items-center gap-2"><TrendingUp size={16} style={{color:B.accent}}/><h3 className="text-sm font-bold" style={{color:B.t1}}>Мои активные уступки</h3><span className="text-xs px-2 py-0.5 rounded-full" style={{background:B.accentL,color:B.accent}}>{pending.length}</span></div><Btn size="sm" variant="secondary" onClick={()=>setActive("cr-deals")}>Все уступки →</Btn></div>
+      <div className="flex items-center justify-between mb-3"><div className="flex items-center gap-2"><TrendingUp size={16} style={{color:B.accent}}/><h3 className="text-sm font-bold" style={{color:B.t1}}><InfoTooltip text="Уступки, по которым ожидается оплата от покупателя. Финансирование уже получено">Мои активные уступки</InfoTooltip></h3><span className="text-xs px-2 py-0.5 rounded-full" style={{background:B.accentL,color:B.accent}}>{pending.length}</span></div><Btn size="sm" variant="secondary" onClick={()=>setActive("cr-deals")}>Все уступки →</Btn></div>
       <div className="text-xs mb-3" style={{color:B.t3}}>Уступки, по которым вы ожидаете финансирование или оплату от покупателя</div>
-      <div className="space-y-2">{pending.sort((a,b)=>a.daysLeft-b.daysLeft).map(d=>{const buyer=BUYERS.find(b=>b.id===d.buyerId);return <div key={d.id} className="flex items-center gap-3 p-3 rounded-xl border border-slate-100 hover:border-slate-200 hover:shadow-sm transition-all cursor-pointer" onClick={()=>setActive("cr-deals")}>
+      <div className="space-y-2">{pending.sort((a,b)=>a.daysLeft-b.daysLeft).map(d=>{const buyer=BUYERS.find(b=>b.id===d.buyerId);return <div key={d.id} className="flex items-center gap-3 p-3 rounded-xl border border-slate-100 hover:border-slate-200 hover:shadow-sm transition-all cursor-pointer" onClick={()=>{setInitialExpandDeal?.(d.id);setActive("cr-deals")}}>
         <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={{background:d.daysLeft<14?B.yellowL:B.accentL}}>{d.ecpStatus==="pending"?<Pen size={14} style={{color:B.yellow}}/>:<CheckCircle size={14} style={{color:B.accent}}/>}</div>
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2"><span className="text-xs font-bold" style={{color:B.accent,fontFamily:"'JetBrains Mono',monospace"}}>{d.id}</span><span className="text-xs font-medium" style={{color:B.t1}}>{buyer?.name}</span></div>
@@ -648,7 +651,7 @@ const DbTasks = ({setActive,setInitialThread}) => {
   </div>;
 };
 
-const DbDashboard = ({setActive,setInitialThread}) => {
+const DbDashboard = ({setActive,setInitialThread,setInitialViewSupply}) => {
   const pendingConfirm=DB_DEALS.filter(d=>!d.confirmed);
   const activeSupplies=DB_DEALS.filter(d=>d.status==="active"||d.status==="pending");
   const totalLimit=SUPPLIERS.reduce((s,sup)=>s+sup.limit,0);
@@ -662,7 +665,7 @@ const DbDashboard = ({setActive,setInitialThread}) => {
     {/* Tasks */}
     <Card className="mb-5 overflow-hidden animate-slide-in">
       <div className="px-5 py-3 flex items-center justify-between border-b border-slate-100" style={{background:"#FAFBFC"}}>
-        <div className="flex items-center gap-2"><ClipboardList size={15} style={{color:B.purple}}/><span className="text-sm font-bold" style={{color:B.t1}}>Задачи</span><span className="px-2 py-0.5 rounded-full text-xs font-bold text-white" style={{background:B.red}}>{taskCount}</span></div>
+        <div className="flex items-center gap-2"><ClipboardList size={15} style={{color:B.purple}}/><span className="text-sm font-bold" style={{color:B.t1}}><InfoTooltip text="Уведомления об уступке на подписание, ответы на сообщения и актуализация данных">Задачи</InfoTooltip></span><span className="px-2 py-0.5 rounded-full text-xs font-bold text-white" style={{background:B.red}}>{taskCount}</span></div>
         <button onClick={()=>setActive("db-tasks")} className="text-xs font-medium hover:underline" style={{color:B.purple}}>Все задачи →</button>
       </div>
       <div className="divide-y divide-slate-50">
@@ -673,7 +676,7 @@ const DbDashboard = ({setActive,setInitialThread}) => {
 
     {/* Limit */}
     <Card className="p-6 mb-5 animate-fade-up">
-      <div className="flex items-center gap-2 mb-4"><Shield size={18} style={{color:B.purple}}/><h2 className="text-lg font-bold" style={{color:B.t1}}>Кредитный лимит</h2></div>
+      <div className="flex items-center gap-2 mb-4"><Shield size={18} style={{color:B.purple}}/><h2 className="text-lg font-bold" style={{color:B.t1}}><InfoTooltip text="Общий лимит факторинга — максимальная сумма одновременно активных уступок. Устанавливается банком по результатам скоринга">Кредитный лимит</InfoTooltip></h2></div>
       <div className="grid grid-cols-3 gap-4 mb-4">
         <div className="rounded-xl p-4 text-center" style={{background:B.purpleL}}><div className="text-[10px] uppercase tracking-wide mb-1" style={{color:B.purple}}>Общий лимит</div><div className="text-2xl font-bold" style={{color:B.purple}}>{fmtByn(totalLimit)}</div></div>
         <div className="rounded-xl p-4 text-center bg-slate-50"><div className="text-[10px] uppercase tracking-wide mb-1" style={{color:B.t3}}>Использовано</div><div className="text-2xl font-bold" style={{color:B.t1}}>{fmtByn(totalUsed)}</div></div>
@@ -685,8 +688,8 @@ const DbDashboard = ({setActive,setInitialThread}) => {
 
     {/* Active supplies */}
     {activeSupplies.length>0&&<Card className="p-5 mb-5 animate-fade-up">
-      <div className="flex items-center justify-between mb-3"><div className="flex items-center gap-2"><TrendingUp size={16} style={{color:B.purple}}/><h3 className="text-sm font-bold" style={{color:B.t1}}>Мои активные поставки</h3><span className="text-xs px-2 py-0.5 rounded-full" style={{background:B.purpleL,color:B.purple}}>{activeSupplies.length}</span></div><Btn size="sm" variant="secondary" onClick={()=>setActive("db-supplies")}>Все поставки →</Btn></div>
-      <div className="space-y-2">{activeSupplies.sort((a,b)=>a.daysLeft-b.daysLeft).map(d=>{const sup=SUPPLIERS.find(s=>s.id===d.supplierId);return <div key={d.id} className="flex items-center gap-3 p-3 rounded-xl border border-slate-100 hover:shadow-sm transition-all cursor-pointer" onClick={()=>setActive("db-supplies")}>
+      <div className="flex items-center justify-between mb-3"><div className="flex items-center gap-2"><TrendingUp size={16} style={{color:B.purple}}/><h3 className="text-sm font-bold" style={{color:B.t1}}><InfoTooltip text="Поставки, по которым ваш поставщик уступил право требования банку. Оплата идёт на счёт банка, не поставщика">Мои активные поставки</InfoTooltip></h3><span className="text-xs px-2 py-0.5 rounded-full" style={{background:B.purpleL,color:B.purple}}>{activeSupplies.length}</span></div><Btn size="sm" variant="secondary" onClick={()=>setActive("db-supplies")}>Все поставки →</Btn></div>
+      <div className="space-y-2">{activeSupplies.sort((a,b)=>a.daysLeft-b.daysLeft).map(d=>{const sup=SUPPLIERS.find(s=>s.id===d.supplierId);return <div key={d.id} className="flex items-center gap-3 p-3 rounded-xl border border-slate-100 hover:shadow-sm transition-all cursor-pointer" onClick={()=>{setInitialViewSupply?.(d.id);setActive("db-supplies")}}>
         <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={{background:d.confirmed?B.greenL:B.yellowL}}>{d.confirmed?<CheckCircle size={14} style={{color:B.green}}/>:<Pen size={14} style={{color:B.yellow}}/>}</div>
         <div className="flex-1 min-w-0"><div className="flex items-center gap-2"><span className="text-xs font-bold" style={{color:B.purple,fontFamily:"'JetBrains Mono',monospace"}}>{d.id}</span><span className="text-xs" style={{color:B.t1}}>{sup?.name}</span></div><div className="text-[10px] mt-0.5" style={{color:B.t3}}>{d.confirmed?"Подтверждена":"Ожидает подтверждения"} · Оплата через {d.daysLeft} дн.</div></div>
         <div className="text-right shrink-0"><div className="text-sm font-bold" style={{color:B.t1}}>{fmtByn(d.amount)}</div><div className="text-[10px]" style={{color:d.daysLeft<14?B.yellow:B.green}}>до {d.dueDate}</div></div>
@@ -696,116 +699,118 @@ const DbDashboard = ({setActive,setInitialThread}) => {
   </div>;
 };
 
-const DbSupplies = ({setActive,setInitialThread}) => {
+const DbSupplies = ({setActive,setInitialThread,setInitialViewDoc,setReturnTo,setReturnSupplyId,setInitialViewSupply,initialViewSupply,onClearViewSupply}) => {
   const [toast,setToast]=useState(null);
-  const [supSearch,setSupSearch]=useState("");
-  const [sectionSigning,setSectionSigning]=useState(null);
-  const [signedFields,setSignedFields]=useState(new Set());
-  const [addedEntries,setAddedEntries]=useState({});
   const [filter,setFilter]=useState("all");
   const [search,setSearch]=useState("");
   const [confirmed,setConfirmed]=useState(new Set(DB_DEALS.filter(d=>d.confirmed).map(d=>d.id)));
   const [signing,setSigning]=useState(null);
   const [rejected,setRejected]=useState(new Set());
-  const [expandedDb,setExpandedDb]=useState(null);
+  const [viewSupply,setViewSupply]=useState(null);
+  useEffect(()=>{if(initialViewSupply){const d=DB_DEALS.find(dd=>dd.id===initialViewSupply);if(d)setViewSupply(d);onClearViewSupply?.()}},[initialViewSupply]);
 
-  const handleConfirm = (id) => {
-    setSigning(id);
-    setTimeout(()=>{
-      setConfirmed(prev=>{const n=new Set(prev);n.add(id);return n});
-      setRejected(prev=>{const n=new Set(prev);n.delete(id);return n});
-      setSigning(null);
-      setToast({msg:`Получение ${id} подтверждено ЭЦП`,type:"success"});
-    },1500);
-  };
+  const handleConfirm=(id)=>{setSigning(id);setTimeout(()=>{setConfirmed(p=>{const n=new Set(p);n.add(id);return n});setRejected(p=>{const n=new Set(p);n.delete(id);return n});setSigning(null);setToast({msg:`Получение ${id} подтверждено ЭЦП`,type:"success"})},1500)};
+  const handleReject=(id)=>{setRejected(p=>{const n=new Set(p);n.add(id);return n});setToast({msg:`Уступка ${id} отклонена`,type:"info"})};
 
-  const handleReject = (id) => {
-    setRejected(prev=>{const n=new Set(prev);n.add(id);return n});
-    setToast({msg:`Уступка ${id} отклонена. Кредитор уведомлён.`,type:"info"});
-  };
-
-  const filtered = DB_DEALS.filter(d=>{
-    if(filter==="pending") return !confirmed.has(d.id) && !rejected.has(d.id) && d.status!=="paid";
-    if(filter==="rejected") return rejected.has(d.id);
-    if(filter==="active") return confirmed.has(d.id) && d.status!=="paid";
-    if(filter==="paid") return d.status==="paid";
+  const filtered=DB_DEALS.filter(d=>{
+    if(filter==="pending")return !confirmed.has(d.id)&&!rejected.has(d.id)&&d.status!=="paid";
+    if(filter==="rejected")return rejected.has(d.id);
+    if(filter==="active")return confirmed.has(d.id)&&d.status!=="paid";
+    if(filter==="paid")return d.status==="paid";
     return true;
   }).filter(d=>{
-    if(!search) return true;
-    const sup=SUPPLIERS.find(s=>s.id===d.supplierId);
-    const q=search.toLowerCase();
+    if(!search)return true;const sup=SUPPLIERS.find(s=>s.id===d.supplierId);const q=search.toLowerCase();
     return d.id.toLowerCase().includes(q)||(sup?.name||"").toLowerCase().includes(q)||d.product.toLowerCase().includes(q);
   });
 
-  return <div>
-    {toast&&<Toast message={toast.msg} type={toast.type} onClose={()=>setToast(null)}/>}
-    <PageHeader title="Мои поставки" subtitle="Входящие уступки от ваших поставщиков"/>
+  // Card view
+  if(viewSupply){const d=viewSupply;const sup=SUPPLIERS.find(s=>s.id===d.supplierId);const isConf=confirmed.has(d.id);const isSigning=signing===d.id;
+    const tl=[{label:"Уступка создана",date:d.notifyDate,done:true,desc:"Поставщик уступил банку"},{label:"Подтверждение",date:isConf?"ЭЦП":"—",done:isConf,desc:isConf?"Подтверждено вами":rejected.has(d.id)?"Отклонена":"Ожидает вашего ЭЦП"},{label:"Оплата банку",date:d.dueDate,done:d.status==="paid",desc:d.status==="paid"?"Оплачена":`${d.daysLeft} дн. осталось`}];
+  return <div>{toast&&<Toast message={toast.msg} type={toast.type} onClose={()=>setToast(null)}/>}
+    <button onClick={()=>setViewSupply(null)} className="flex items-center gap-1.5 text-sm font-medium mb-4 hover:underline" style={{color:B.purple}}><ArrowLeft size={16}/>Назад к поставкам</button>
 
-    {doc.type==="profile"&&<Card className="p-5 mb-5"><h3 className="text-sm font-bold mb-2" style={{color:B.t1}}>Версия документа</h3><div className="text-sm" style={{color:B.t2}}>Версия {doc.version||1} от {doc.date}</div>{doc.version>1&&<button className="text-xs mt-2 hover:underline" style={{color:B.accent}} onClick={()=>setToast({msg:"Предыдущая версия открыта",type:"info"})}>← Предыдущая версия</button>}<div className="mt-3"><Btn size="sm" variant="secondary" icon={Pen} onClick={()=>setActive("cr-profile")}>Перейти в анкету</Btn></div></Card>}
-    <div className="flex flex-wrap gap-2 mb-5">
-      {[["all","Все",B.purple],["pending","Ожидает подтверждения",B.yellow],["rejected","Отклонённые",B.red],["active","Активные",B.green],["paid","Оплаченные",B.accent]].map(([v,l,c])=>
-        <button key={v} onClick={()=>setFilter(v)} className={`px-4 py-2 rounded-xl text-sm font-medium transition-colors ${filter===v?"text-white":"text-slate-500 bg-slate-50"}`} style={filter===v?{background:c}:undefined}>{l}</button>
-      )}
-      <div className="relative ml-auto"><Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"/><input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Поиск по номеру, поставщику, товару..." className="pl-9 pr-8 py-2 w-72 text-sm rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-purple-200"/>{search&&<button onClick={()=>setSearch("")} className="absolute right-2.5 top-1/2 -translate-y-1/2"><X size={14} className="text-slate-400"/></button>}</div>
+    <Card className="p-6 mb-5">
+      <div className="flex items-start justify-between mb-4">
+        <div><div className="flex items-center gap-3 mb-1"><h1 className="text-xl font-bold" style={{color:B.t1}}>{d.id}</h1><StatusBadge status={isConf?(d.status==="paid"?"paid":"confirmed"):"pending"} size="md"/>{rejected.has(d.id)&&<span className="px-2 py-0.5 rounded-full text-xs font-medium" style={{background:B.redL,color:B.red}}>Отклонена</span>}</div><div className="text-sm" style={{color:B.t3}}>{sup?.name} · {d.product} · {d.notifyDate}</div></div>
+        <div className="flex gap-2">{!isConf&&d.status!=="paid"&&!rejected.has(d.id)&&<Btn icon={isSigning?Loader2:Pen} disabled={!!signing} onClick={()=>handleConfirm(d.id)} style={{background:B.purple}}>{isSigning?"Подписание...":"Подписать уведомление"}</Btn>}
+          <Btn variant="secondary" icon={MessageCircle} onClick={()=>{setInitialThread?.(d.id);setActive("db-messages")}}>Обсудить</Btn></div>
+      </div>
+      <div className="flex items-center gap-1">{tl.map((s,i)=><Fragment key={i}><div className="flex flex-col items-center shrink-0" style={{minWidth:100}}><div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs ${s.done?"text-white":"border-2"}`} style={s.done?{background:B.green}:i===tl.findIndex(x=>!x.done)?{borderColor:B.purple,color:B.purple}:{borderColor:B.border,color:B.t3}}>{s.done?<Check size={12}/>:i+1}</div><div className="text-[10px] font-semibold mt-1.5 text-center" style={{color:s.done?B.green:B.t3}}>{s.label}</div><div className="text-[9px] text-center" style={{color:B.t3}}>{s.desc}</div></div>{i<tl.length-1&&<div className="flex-1 h-px mx-2" style={{background:tl[i+1].done?B.green:B.border}}/>}</Fragment>)}</div>
+    </Card>
+
+    <div className="grid grid-cols-4 gap-4 mb-5">
+      <Card className="p-4"><div className="text-[10px] uppercase tracking-wide mb-1" style={{color:B.t3}}><InfoTooltip text="Сумма поставки, которую нужно оплатить банку вместо поставщика">Сумма</InfoTooltip></div><div className="text-xl font-bold" style={{color:B.t1}}>{fmtByn(d.amount)}</div></Card>
+      <Card className="p-4"><div className="text-[10px] uppercase tracking-wide mb-1" style={{color:B.t3}}><InfoTooltip text="Крайний срок оплаты. После этой даты начисляется пеня">Срок оплаты</InfoTooltip></div><div className="text-xl font-bold" style={{color:B.t1}}>{d.dueDate}</div></Card>
+      <Card className="p-4"><div className="text-[10px] uppercase tracking-wide mb-1" style={{color:B.t3}}><InfoTooltip text="Количество дней до крайнего срока оплаты">Осталось</InfoTooltip></div><div className="text-xl font-bold" style={{color:d.daysLeft<14?B.yellow:B.green}}>{d.status==="paid"?"Оплачена":d.daysLeft+" дн."}</div></Card>
+      <Card className="p-4"><div className="text-[10px] uppercase tracking-wide mb-1" style={{color:B.t3}}>Статус</div><div className="mt-1"><StatusBadge status={isConf?(d.status==="paid"?"paid":"confirmed"):"pending"}/></div></Card>
     </div>
 
-    <Card className="overflow-hidden overflow-x-auto">
-      <table className="w-full text-sm ">
-        <thead><tr className="text-xs text-left border-b border-slate-100" style={{color:B.t3,background:"#FAFBFC"}}>
-          <th className="px-5 py-3 font-medium">№ уступки</th><th className="px-3 py-3 font-medium">Поставщик</th><th className="px-3 py-3 font-medium">Товар</th>
-          <th className="px-3 py-3 font-medium text-right">Сумма</th><th className="px-3 py-3 font-medium">Срок оплаты</th><th className="px-3 py-3 font-medium text-center">Дней</th><th className="px-3 py-3 font-medium">Статус</th><th className="px-3 py-3 font-medium text-center">ЭЦП</th><th className="px-3 py-3 font-medium text-center">Действия</th>
-        </tr></thead>
-        <tbody>{filtered.map(d=>{const sup=SUPPLIERS.find(s=>s.id===d.supplierId);const isConf=confirmed.has(d.id);const isSigning=signing===d.id;const isExp=expandedDb===d.id;const dtl=[{label:"Уступка",date:d.notifyDate,done:true,desc:"Поставщик уступил банку"},{label:"Подтверждение",date:isConf?"ЭЦП":"—",done:isConf,desc:isConf?"Подтверждено ЭЦП":rejected.has(d.id)?"Отклонена":"Ожидает вашего ЭЦП"},{label:"Оплата",date:d.dueDate,done:d.status==="paid",desc:d.status==="paid"?"Оплачена":`${d.daysLeft} дн.`}];
-          return <Fragment key={d.id}><tr onClick={()=>setExpandedDb(isExp?null:d.id)} className={`border-b border-slate-50 cursor-pointer transition-colors hover:bg-slate-50`} style={!isConf&&d.status!=="paid"?{background:"#FFF7ED"}:undefined}>
-            <td className="px-5 py-3" style={{fontFamily:"'JetBrains Mono',monospace",fontSize:12,color:B.purple}}>{d.id}</td>
-            <td className="px-3 py-3 font-medium" style={{color:B.t1}}>{sup?.name}</td>
-            <td className="px-3 py-3 text-xs" style={{color:B.t2}}>{d.product}</td>
-            <td className="px-3 py-3 text-right font-bold" style={{color:B.t1}}>{fmtByn(d.amount)}</td>
-            <td className="px-3 py-3" style={{color:B.t2}}>{d.dueDate}</td>
-            <td className="px-3 py-3 text-center font-bold text-xs" style={{color:d.daysLeft<=0?B.red:d.daysLeft<14?B.yellow:B.green}}>{d.status==="paid"?"—":d.daysLeft}</td>
-            <td className="px-3 py-3"><StatusBadge status={isConf?(d.status==="paid"?"paid":"confirmed"):"pending"}/></td>
-            <td className="px-3 py-3 text-center">{isConf?<span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium" style={{background:B.greenL,color:B.green}}><Shield size={10}/>ЭЦП</span>:d.status==="paid"?<span className="text-xs" style={{color:B.green}}>—</span>:<span className="text-xs" style={{color:B.yellow}}>Ожидает</span>}</td>
-            <td className="px-3 py-3 text-center">{rejected.has(d.id)?<span className="text-xs px-2 py-0.5 rounded-full" style={{background:B.redL,color:B.red}}>Отклонена</span>:!isConf&&d.status!=="paid"?(isSigning?<span className="inline-flex items-center gap-1.5 text-xs" style={{color:B.purple}}><Loader2 size={13} className="animate-spin"/>ЭЦП...</span>:<div className="flex items-center gap-1 justify-center"><Btn size="sm" onClick={e=>{e.stopPropagation();handleConfirm(d.id)}} icon={Pen} style={{background:B.purple}}>ЭЦП</Btn><button onClick={e=>{e.stopPropagation();handleReject(d.id)}} className="px-2 py-1 rounded-lg text-[10px] font-medium hover:bg-red-50 transition-colors" style={{color:B.red}}>Отклонить</button></div>):d.status==="paid"?<span className="text-xs" style={{color:B.green}}>Оплачена</span>:<span className="text-xs" style={{color:B.t3}}>OK</span>}</td>
-            <td className="px-2 py-3 text-center"><button onClick={e=>{e.stopPropagation();setInitialThread?.(d.id);setActive("db-messages")}} className="flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-medium hover:bg-purple-50 transition-colors" style={{color:B.purple}}><MessageCircle size={10}/>Обсудить</button></td>
-          </tr>
-          {isExp&&<tr><td colSpan={10} className="px-5 py-4 bg-slate-50/50 border-b border-slate-200">
-            <div className="flex items-center gap-1 mb-3">{dtl.map((s,i)=><Fragment key={i}><div className="flex flex-col items-center"><div className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] ${s.done?"text-white":"border-2"}`} style={s.done?{background:B.green}:{borderColor:i===dtl.findIndex(x=>!x.done)?B.purple:B.border,color:B.t3}}>{s.done?<Check size={10}/>:i+1}</div><div className="text-[9px] font-semibold mt-1" style={{color:s.done?B.green:B.t3}}>{s.label}</div><div className="text-[9px]" style={{color:B.t3}}>{s.desc}</div></div>{i<dtl.length-1&&<div className="flex-1 h-px mx-1" style={{background:dtl[i+1].done?B.green:B.border}}/>}</Fragment>)}</div>
-            <div className="rounded-lg border border-slate-200 bg-white p-3 mb-3"><div className="text-xs font-bold mb-2" style={{color:B.t1}}>Документы уступки</div>
-              <div className="space-y-1.5">{[{icon:Gavel,name:`ДС №${d.id.split("-")[2]} к ГД№1`,type:"ДС",signed:true},{icon:FileSpreadsheet,name:`${d.product?.includes("Цемент")?"ТТН":"Акт"}_${d.id.split("-")[2]}.pdf`,type:d.product?.includes("Цемент")?"ТТН":"Акт",signed:true},{icon:Receipt,name:`ЭСЧФ_${d.id.split("-")[2]}.pdf`,type:"ЭСЧФ",signed:true},{icon:Send,name:`Уведомление_${d.id.split("-")[2]}`,type:"Увед.",signed:isConf}].map((doc,i)=><div key={i} className="flex items-center gap-2 text-xs py-1 rounded-lg px-2 hover:bg-slate-50 -mx-2">
-                <doc.icon size={12} style={{color:B.purple}}/>
-                <span className="font-medium flex-1" style={{color:B.t1}}>{doc.name}</span>
-                <span className="px-1.5 py-0.5 rounded bg-slate-100 text-[9px]" style={{color:B.t3}}>{doc.type}</span>
-                {doc.signed?<span className="inline-flex items-center gap-1 text-[10px]" style={{color:B.green}}><Shield size={9}/>ЭЦП</span>:<button onClick={e=>{e.stopPropagation();handleConfirm(d.id)}} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[10px] font-medium text-white" style={{background:B.purple}}><Pen size={9}/>Подписать</button>}
-                <button onClick={e=>{e.stopPropagation();setToast({msg:`${doc.name} скачан`,type:"info"})}} className="p-0.5 rounded hover:bg-slate-100"><Download size={10} className="text-slate-400"/></button>
-                <button onClick={e=>{e.stopPropagation();setInitialThread?.(d.id);setActive("db-messages")}} className="flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[9px] font-medium hover:bg-purple-50" style={{color:B.purple}}><MessageCircle size={9}/>Обсудить</button>
-              </div>)}</div>
-            </div>
-            <div className="rounded-lg border-2 border-dashed p-3 mb-2" style={{borderColor:B.purple+"40",background:B.purpleL}}>
-              <div className="flex items-center justify-between mb-1"><span className="text-xs font-bold flex items-center gap-1.5" style={{color:B.purple}}><Calendar size={12}/>График платежей</span><button onClick={e=>{e.stopPropagation();setToast({msg:`График_${d.id.split("-")[2]} скачан`,type:"info"})}} className="text-[10px] font-medium flex items-center gap-1 hover:underline" style={{color:B.purple}}><Download size={10}/>Скачать</button></div>
-              <div className="text-xs" style={{color:B.t1}}>Сумма: <strong>{fmtByn(d.amount)}</strong> · Срок оплаты: <strong>{d.dueDate}</strong> · Осталось: <strong style={{color:d.daysLeft<14?B.yellow:B.green}}>{d.daysLeft} дн.</strong></div>
-              <div className="text-[10px] mt-1" style={{color:B.t3}}>Оплата на счёт: BY20 NEOB 3819 0000 0001 2345 (ЗАО «Нео Банк Азия»)</div>
-            </div>
-            <div className="rounded-lg bg-blue-50 p-2 flex items-center justify-between"><span className="text-[10px]" style={{color:B.t2}}>Реквизиты: BY20 NEOB 3819 0000 0001 2345</span><button onClick={e=>{e.stopPropagation();copyText("BY20 NEOB 3819 0000 0001 2345");setToast({msg:"Номер счёта скопирован",type:"success"})}} className="text-[10px] font-medium" style={{color:B.accent}}>Скопировать</button></div>
-          </td></tr>}
-          </Fragment>;
-        })}</tbody>
-      </table>
+    <Card className="p-5 mb-5">
+      <h3 className="text-sm font-bold mb-3" style={{color:B.t1}}><InfoTooltip text="Пакет документов по данной уступке. ДС, ТТН и ЭСЧФ — для просмотра. Уведомление — требует вашей подписи ЭЦП">Документы уступки</InfoTooltip></h3>
+      <div className="space-y-2">{[
+        {icon:Gavel,name:`ДС №${d.id.split("-")[2]} к ГД№1`,type:"Допсоглашение",status:"view",desc:"Подписано кредитором и банком"},
+        {icon:FileSpreadsheet,name:`${d.product?.includes("Цемент")?"ТТН":"Акт"}_${d.id.split("-")[2]}.pdf`,type:d.product?.includes("Цемент")?"ТТН":"Акт",status:"view",desc:"Загружен кредитором"},
+        {icon:Receipt,name:`ЭСЧФ_${d.id.split("-")[2]}.pdf`,type:"ЭСЧФ",status:"view",desc:"Загружен кредитором"},
+        {icon:Send,name:`Уведомление_${d.id.split("-")[2]}`,type:"Увед. об уступке",status:isConf?"signed":"pending",desc:isConf?"Подтверждено вами ЭЦП":"Требует подписания ЭЦП"},
+      ].map((doc,i)=><div key={i} className="flex items-center gap-3 p-3 rounded-xl border border-slate-100 hover:shadow-sm hover:border-purple-200 cursor-pointer transition-all" onClick={()=>{setInitialViewDoc?.(doc.name);setReturnSupplyId?.(d.id);setReturnTo("db-supplies");setActive("db-documents")}}>
+        <doc.icon size={14} style={{color:B.purple}}/>
+        <div className="flex-1 min-w-0"><div className="text-sm font-medium hover:underline" style={{color:B.purple}}>{doc.name}</div><div className="text-[10px]" style={{color:B.t3}}>{doc.desc}</div></div>
+        <span className="px-2 py-0.5 rounded-lg text-[10px] bg-slate-100" style={{color:B.t3}}>{doc.type}</span>
+        {doc.status==="signed"?<span className="inline-flex items-center gap-1 text-[10px]" style={{color:B.green}}><Shield size={9}/>ЭЦП</span>:doc.status==="pending"?<button onClick={e=>{e.stopPropagation();handleConfirm(d.id)}} className="px-2.5 py-1 rounded-lg text-[10px] font-medium text-white" style={{background:B.purple}}><Pen size={9} className="inline mr-1"/>Подписать</button>:<span className="inline-flex items-center gap-1 text-[10px]" style={{color:B.t3}}><Eye size={9}/>Просмотр</span>}
+        <button onClick={e=>{e.stopPropagation();setToast({msg:`${doc.name} скачан`,type:"info"})}} className="p-1.5 rounded-lg hover:bg-slate-100"><Download size={12} className="text-slate-400"/></button>
+        <ChevronRight size={14} className="text-slate-300"/>
+      </div>)}</div>
     </Card>
 
-    <Card className="p-4 mt-5" style={{background:"#F0F9FF",borderColor:"#BAE6FD"}}>
-      <div className="flex items-start gap-3"><Info size={18} style={{color:B.accent}} className="shrink-0 mt-0.5"/>
-      <div className="text-sm" style={{color:B.t1}}>Ваш поставщик уступил денежное требование банку ЗАО «Нео Банк Азия». Подтверждение получения подписывается ЭЦП для юридической фиксации. Оплату производите по реквизитам банка.</div></div>
+    <Card className="p-5 mb-5" style={{borderColor:B.purple+"30",background:B.purpleL}}>
+      <div className="flex items-center justify-between mb-2"><h3 className="text-sm font-bold flex items-center gap-1.5" style={{color:B.purple}}><Calendar size={14}/><InfoTooltip text="Оплачивайте на счёт банка вместо поставщика. Реквизиты указаны ниже. Комиссия для вас — 0%">График платежей</InfoTooltip></h3><button onClick={()=>setToast({msg:"График скачан",type:"info"})} className="text-xs font-medium flex items-center gap-1 hover:underline" style={{color:B.purple}}><Download size={11}/>Скачать</button></div>
+      <div className="text-sm" style={{color:B.t1}}>Сумма к оплате: <strong>{fmtByn(d.amount)}</strong></div>
+      <div className="text-sm" style={{color:B.t1}}>Срок: <strong>{d.dueDate}</strong> · Осталось: <strong style={{color:d.daysLeft<14?B.yellow:B.green}}>{d.daysLeft} дн.</strong></div>
+      <div className="rounded-xl p-3 mt-3 bg-white/70"><div className="text-[10px] uppercase tracking-wider font-bold mb-1.5" style={{color:B.purple}}>Реквизиты для оплаты</div><div className="space-y-1 text-sm">{[["Получатель","ЗАО «Нео Банк Азия»"],["Р/с","BY20 NEOB 3819 0000 0001 2345"],["БИК","NEOBBY2X"]].map(([l,v],i)=><div key={i} className="flex justify-between"><span style={{color:B.t3}}>{l}</span><span className="font-medium" style={{color:B.t1,fontFamily:i>0?"'JetBrains Mono',monospace":undefined}}>{v}</span></div>)}</div><Btn size="sm" variant="secondary" className="w-full mt-2" icon={ExternalLink} onClick={()=>{copyText("BY20 NEOB 3819 0000 0001 2345");setToast({msg:"Реквизиты скопированы",type:"success"})}}>Скопировать реквизиты</Btn></div>
     </Card>
+
+    <Card className="p-5">
+      <div className="flex items-center justify-between mb-3"><h3 className="text-sm font-bold" style={{color:B.t1}}>Обсуждение</h3><button onClick={()=>{setInitialThread?.(d.id);setActive("db-messages")}} className="text-xs font-medium" style={{color:B.purple}}>Все сообщения →</button></div>
+      {(DEAL_MESSAGES_INIT[d.id]?.messages||[]).slice(-3).map((m,j)=><div key={j} className="flex items-start gap-2 py-1.5"><span className="text-xs font-bold shrink-0" style={{color:m.from==="creditor"?B.accent:B.purple}}>{(m.company||"").replace(/[«»ООО ОАО ЧУП ]/g,"").slice(0,12)}</span><span className="text-xs flex-1" style={{color:B.t2}}>{m.text}</span></div>)}
+      {(DEAL_MESSAGES_INIT[d.id]?.messages||[]).length===0&&<button onClick={()=>{setInitialThread?.(d.id);setActive("db-messages")}} className="text-xs font-medium flex items-center gap-1 py-2" style={{color:B.purple}}><MessageCircle size={11}/>Начать обсуждение</button>}
+    </Card>
+  </div>}
+
+  // Table view
+  return <div>{toast&&<Toast message={toast.msg} type={toast.type} onClose={()=>setToast(null)}/>}
+    <PageHeader title="Мои поставки" subtitle="Входящие уступки от ваших поставщиков"/>
+    <div className="flex flex-wrap items-center gap-2 mb-5">
+      {[["all","Все",B.purple],["pending","Ожидает подтверждения",B.yellow],["rejected","Отклонённые",B.red],["active","Подтверждённые",B.green],["paid","Оплаченные",B.accent]].map(([v,l,cc])=><button key={v} onClick={()=>setFilter(v)} className={`px-4 py-2 rounded-xl text-sm font-medium transition-colors ${filter===v?"text-white":"text-slate-500 bg-slate-50"}`} style={filter===v?{background:cc}:undefined}>{l}</button>)}
+      <div className="relative ml-auto"><Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"/><input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Поиск по номеру, поставщику, товару..." className="pl-9 pr-8 py-2 w-72 text-sm rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-purple-200"/>{search&&<button onClick={()=>setSearch("")} className="absolute right-2.5 top-1/2 -translate-y-1/2"><X size={14} className="text-slate-400"/></button>}</div>
+    </div>
+    <Card className="overflow-hidden overflow-x-auto"><table className="w-full text-sm"><thead><tr className="text-xs text-left border-b border-slate-100" style={{color:B.t3,background:"#FAFBFC"}}>
+      <th className="px-5 py-3 font-medium">№ уступки</th><th className="px-3 py-3 font-medium">Поставщик</th><th className="px-3 py-3 font-medium">Товар</th>
+      <th className="px-3 py-3 font-medium text-right">Сумма</th><th className="px-3 py-3 font-medium">Срок</th><th className="px-3 py-3 font-medium text-center">Дней</th><th className="px-3 py-3 font-medium"><InfoTooltip text="Ожидает — нужно подписать уведомление. Подтверждена — ЭЦП подписано. Оплачена — деньги перечислены банку">Статус</InfoTooltip></th><th className="px-3 py-3 font-medium text-center">Действия</th>
+    </tr></thead>
+    <tbody>{filtered.map(d=>{const sup=SUPPLIERS.find(s=>s.id===d.supplierId);const isConf=confirmed.has(d.id);const isSigning=signing===d.id;
+      return <tr key={d.id} onClick={()=>setViewSupply(d)} className="border-b border-slate-50 cursor-pointer transition-colors hover:bg-slate-50" style={!isConf&&d.status!=="paid"&&!rejected.has(d.id)?{background:"#FFF7ED"}:undefined}>
+        <td className="px-5 py-3" style={{fontFamily:"'JetBrains Mono',monospace",fontSize:12,color:B.purple}}>{d.id}</td>
+        <td className="px-3 py-3 font-medium" style={{color:B.t1}}>{sup?.name}</td>
+        <td className="px-3 py-3 text-xs" style={{color:B.t2}}>{d.product}</td>
+        <td className="px-3 py-3 text-right font-bold" style={{color:B.t1}}>{fmtByn(d.amount)}</td>
+        <td className="px-3 py-3 text-xs" style={{color:B.t2}}>{d.dueDate}</td>
+        <td className="px-3 py-3 text-center font-bold text-xs" style={{color:d.daysLeft<=0?B.red:d.daysLeft<14?B.yellow:B.green}}>{d.status==="paid"?"—":d.daysLeft}</td>
+        <td className="px-3 py-3"><StatusBadge status={rejected.has(d.id)?"rejected":isConf?(d.status==="paid"?"paid":"confirmed"):"pending"}/></td>
+        <td className="px-3 py-3 text-center" onClick={e=>e.stopPropagation()}><div className="flex items-center justify-center gap-1">
+          {rejected.has(d.id)?<span className="text-xs" style={{color:B.red}}>Отклонена</span>:!isConf&&d.status!=="paid"?(isSigning?<Loader2 size={13} className="animate-spin" style={{color:B.purple}}/>:<><Btn size="sm" onClick={()=>handleConfirm(d.id)} icon={Pen} style={{background:B.purple}}>Подписать увед.</Btn><button onClick={()=>handleReject(d.id)} className="px-2 py-1 rounded-lg text-[10px] hover:bg-red-50" style={{color:B.red}}>Откл.</button></>):null}
+          <button onClick={()=>{setInitialThread?.(d.id);setActive("db-messages")}} className="flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-medium hover:bg-purple-50" style={{color:B.purple}}><MessageCircle size={10}/>Обсудить</button>
+        </div></td>
+      </tr>})}</tbody></table></Card>
   </div>;
 };
 
-const DbPayments = ({setActive,setInitialThread}) => {
+
+const DbPayments = ({setActive,setInitialThread,setInitialViewSupply}) => {
   const [toast,setToast]=useState(null);
-  const [sectionSigning,setSectionSigning]=useState(null);
-  const [signedFields,setSignedFields]=useState(new Set());
-  const [addedEntries,setAddedEntries]=useState({});
   const [showReqs,setShowReqs]=useState(null);
+  const [paySearch,setPaySearch]=useState("");
   const totalUpcoming = DB_PAYMENTS.reduce((s,p)=>s+p.amount,0);
+  const filtered = DB_PAYMENTS.filter(p=>{if(!paySearch)return true;const q=paySearch.toLowerCase();return p.dealId.toLowerCase().includes(q)||p.supplier.toLowerCase().includes(q)});
 
   const copyToClipboard = (text,label) => { copyText(text); setToast({msg:`${label} скопировано`,type:"success"}); };
 
@@ -813,16 +818,18 @@ const DbPayments = ({setActive,setInitialThread}) => {
 
   return <div>
     {toast&&<Toast message={toast.msg} type={toast.type} onClose={()=>setToast(null)}/>}
-    <PageHeader title="График платежей" subtitle="Ваши обязательства перед банком-партнёром"/>
+    <PageHeader title="График платежей" subtitle="Оплата на счёт банка ЗАО «Нео Банк Азия», а не поставщику"/>
 
-    <div className="grid grid-cols-3 gap-4 mb-6">
-      <Card className="p-4 text-center"><div className="text-2xl font-bold" style={{color:B.purple}}>{fmtByn(totalUpcoming)}</div><div className="text-xs mt-1" style={{color:B.t3}}>К оплате всего</div></Card>
+    <div className="grid grid-cols-3 gap-4 mb-5">
+      <Card className="p-4 text-center"><div className="text-2xl font-bold" style={{color:B.purple}}>{fmtByn(totalUpcoming)}</div><div className="text-xs mt-1" style={{color:B.t3}}><InfoTooltip text="Общая сумма всех предстоящих платежей по активным уступкам">К оплате всего</InfoTooltip></div></Card>
       <Card className="p-4 text-center"><div className="text-2xl font-bold" style={{color:B.yellow}}>{DB_PAYMENTS.length}</div><div className="text-xs mt-1" style={{color:B.t3}}>Предстоящих платежей</div></Card>
       <Card className="p-4 text-center"><div className="text-2xl font-bold" style={{color:B.green}}>{fmtByn(DB_DEALS.filter(d=>d.status==="paid").reduce((s,d)=>s+d.amount,0))}</div><div className="text-xs mt-1" style={{color:B.t3}}>Оплачено за всё время</div></Card>
     </div>
 
+    <div className="flex items-center gap-3 mb-4"><div className="relative"><Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"/><input value={paySearch} onChange={e=>setPaySearch(e.target.value)} placeholder="Поиск по номеру или поставщику..." className="pl-9 pr-3 py-2 w-64 text-sm rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-purple-200"/></div></div>
+
     <Card className="overflow-hidden">
-      {DB_PAYMENTS.map(p=><div key={p.id} className="flex items-center gap-5 px-6 py-5 border-b border-slate-50 last:border-0">
+      {filtered.map(p=><div key={p.id} className="flex items-center gap-5 px-6 py-5 border-b border-slate-50 last:border-0 cursor-pointer hover:bg-slate-50 transition-colors" onClick={()=>{setInitialViewSupply?.(p.dealId);setActive("db-supplies")}}>
         <div className="w-12 h-12 rounded-xl flex flex-col items-center justify-center" style={{background:p.daysLeft<14?B.yellowL:B.purpleL}}>
           <div className="text-[10px] font-medium" style={{color:p.daysLeft<14?B.yellow:B.purple}}>{p.dueDate.split("-")[2]}</div>
           <div className="text-[10px]" style={{color:B.t3}}>{["","янв","фев","мар","апр","май","июн"][parseInt(p.dueDate.split("-")[1])]}</div>
@@ -835,8 +842,8 @@ const DbPayments = ({setActive,setInitialThread}) => {
           <div className="text-xl font-bold" style={{color:B.purple}}>{fmtByn(p.amount)}</div>
           <div className="text-xs mt-0.5" style={{color:p.daysLeft<14?B.yellow:B.green}}>через {p.daysLeft} дн.</div>
         </div>
-        <Btn variant="secondary" size="sm" icon={ExternalLink} onClick={()=>setShowReqs(p)}>Реквизиты</Btn>
-        <button onClick={()=>{setInitialThread?.(p.dealId);setActive("db-messages")}} className="flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-medium hover:bg-purple-50 shrink-0" style={{color:B.purple}}><MessageCircle size={10}/>Обсудить</button>
+        <Btn variant="secondary" size="sm" icon={ExternalLink} onClick={e=>{e.stopPropagation();setShowReqs(p)}}>Реквизиты</Btn>
+        <button onClick={e=>{e.stopPropagation();setInitialThread?.(p.dealId);setActive("db-messages")}} className="flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-medium hover:bg-purple-50 shrink-0" style={{color:B.purple}}><MessageCircle size={10}/>Обсудить</button>
       </div>)}
     </Card>
 
@@ -909,13 +916,6 @@ const DbLimit = () => {
         </div>
       </Card>;
     })}
-
-    {/* Limit usage by deals */}
-    <Card className="p-5">
-      <h3 className="font-semibold text-sm mb-3" style={{color:B.t1}}>Детализация использования</h3>
-      <table className="w-full text-sm"><thead><tr className="text-xs" style={{color:B.t3}}><th className="pb-2 text-left font-medium">Уступка</th><th className="pb-2 text-left font-medium">Товар</th><th className="pb-2 text-right font-medium">Сумма</th><th className="pb-2 font-medium">Статус</th></tr></thead>
-      <tbody>{DB_DEALS.filter(d=>d.status!=="paid").map(d=><TableRow key={d.id}><td className="py-2" style={{fontFamily:"'JetBrains Mono',monospace",fontSize:11,color:B.purple}}>{d.id}</td><td className="py-2 text-xs" style={{color:B.t2}}>{d.product}</td><td className="py-2 text-right font-medium">{fmtByn(d.amount)}</td><td className="py-2"><StatusBadge status={d.confirmed?"active":"pending"}/></td></TableRow>)}</tbody></table>
-    </Card>
 
     <Modal open={showRequest} onClose={()=>setShowRequest(false)} title="Запрос увеличения лимита">
       <div className="space-y-4">
@@ -1121,6 +1121,7 @@ const MessagesPage = ({ctx,setActive,initialThread,onNavigateDeal}) => {
 };
 
 const SupportPage = ({ctx}) => {
+  const [expandedFaq,setExpandedFaq]=useState(null);
   const accent=ctx==="creditor"?B.accent:B.purple;
   const [tickets,setTickets]=useState(SUPPORT_TICKETS_INIT);
   const [activeTicket,setActiveTicket]=useState(null);
@@ -1299,8 +1300,9 @@ const SupportPage = ({ctx}) => {
         :<Card className="flex-1 flex flex-col overflow-hidden">
           <div className="flex-1 p-8"><div className="text-center mb-6"><div className="w-14 h-14 rounded-2xl flex items-center justify-center mx-auto mb-3" style={{background:accent+"15"}}><MessageSquare size={28} style={{color:accent}}/></div><h3 className="text-lg font-bold" style={{color:B.t1}}>Чем помочь?</h3><p className="text-xs mt-1" style={{color:B.t3}}>Выберите обращение или создайте новое</p></div>
             <div className="max-w-lg mx-auto"><h4 className="text-xs font-bold uppercase tracking-wider mb-3" style={{color:B.t3}}>Частые вопросы</h4>
-              <div className="space-y-2">{[{q:"Как рассчитывается дисконт?",a:"Формула: сумма × (ставка/365) × дни."},{q:"Сколько дней финансирование?",a:"До 3 рабочих дней после ЭЦП."},{q:"Что при просрочке покупателя?",a:"Безрегрессный — банк сам работает."},{q:"Как добавить покупателя?",a:"Пре-скоринг → УНП → проверка."},{q:"Какие документы нужны?",a:"ТТН/Акт + ЭСЧФ. ДС — автоматически."}].map((f,i)=><div key={i} className="rounded-xl border border-slate-200 p-3 hover:border-slate-300 transition-colors cursor-pointer" onClick={()=>{setNewSubject(f.q);setNewDesc(f.q);setShowNew(true)}}>
-                <div className="text-xs font-semibold" style={{color:B.t1}}>{f.q}</div><div className="text-[10px]" style={{color:B.t3}}>{f.a}</div>
+              <div className="space-y-2">{[{q:"Как рассчитывается дисконт?",a:"Формула: сумма × (годовая ставка / 365) × количество дней. Например: 100 000 BYN × (25%/365) × 60 дней = 4 110 BYN. Ставка индивидуальна для каждого покупателя."},{q:"Сколько дней занимает финансирование?",a:"До 3 рабочих дней после подписания допсоглашения ЭЦП. Деньги поступают на ваш расчётный счёт за вычетом дисконта."},{q:"Что происходит при просрочке покупателя?",a:"У вас безрегрессный факторинг — риск неоплаты полностью на банке. Вам НЕ нужно возвращать полученное финансирование. Банк самостоятельно работает с должником."},{q:"Как добавить нового покупателя?",a:"Перейдите в Пре-скоринг → введите УНП покупателя → система автоматически проверит компанию. Если результат положительный — отправьте приглашение. Окончательное решение принимает банк."},{q:"Какие документы нужны для уступки?",a:"ТТН (для товаров) или Акт выполненных работ (для услуг) + ЭСЧФ (электронный счёт-фактура). Допсоглашение формируется автоматически платформой."}].map((f,i)=><div key={i} className="rounded-xl border border-slate-200 overflow-hidden transition-colors">
+                <button className="w-full p-3 flex items-center justify-between text-left hover:bg-slate-50" onClick={()=>setExpandedFaq(expandedFaq===i?null:i)}><span className="text-xs font-semibold" style={{color:B.t1}}>{f.q}</span>{expandedFaq===i?<ChevronUp size={14} style={{color:B.t3}}/>:<ChevronDown size={14} style={{color:B.t3}}/>}</button>
+                {expandedFaq===i&&<div className="px-3 pb-3 text-xs leading-relaxed" style={{color:B.t2}}>{f.a}</div>}
               </div>)}</div>
             </div>
           </div>
@@ -1416,7 +1418,7 @@ ${COMPANY.phone} · ${COMPANY.email}`}</div>
       </div>}
     </div></Card>}
 
-    <Card className="p-6"><h3 className="font-semibold text-sm mb-4" style={{color:B.t1}}>История проверок</h3><table className="w-full text-sm"><thead><tr className="text-xs text-left" style={{color:B.t3}}><th className="pb-3 font-medium">Дата</th><th className="pb-3 font-medium">УНП</th><th className="pb-3 font-medium">Компания</th><th className="pb-3 font-medium">Результат</th><th className="pb-3 font-medium text-right">Лимит</th></tr></thead><tbody>{SCORING_HISTORY.map((h,i)=><TableRow key={i}><td className="py-2.5" style={{color:B.t2}}>{h.date}</td><td className="py-2.5" style={{fontFamily:"'JetBrains Mono',monospace",fontSize:12,color:B.t1}}>{h.unp}</td><td className="py-2.5 font-medium" style={{color:B.t1}}>{h.company}</td><td className="py-2.5"><StatusBadge status={h.result}/></td><td className="py-2.5 text-right" style={{color:B.t1}}>{h.limit>0?fmtByn(h.limit):"—"}</td></TableRow>)}</tbody></table></Card>
+    <Card className="p-6"><h3 className="font-semibold text-sm mb-4" style={{color:B.t1}}><InfoTooltip text="Результаты предварительных автоматических проверок. Окончательное решение принимается банком">История проверок</InfoTooltip></h3><table className="w-full text-sm"><thead><tr className="text-xs text-left" style={{color:B.t3}}><th className="pb-3 font-medium">Дата</th><th className="pb-3 font-medium">УНП</th><th className="pb-3 font-medium">Компания</th><th className="pb-3 font-medium">Результат</th><th className="pb-3 font-medium text-right">Лимит</th></tr></thead><tbody>{SCORING_HISTORY.map((h,i)=><TableRow key={i}><td className="py-2.5" style={{color:B.t2}}>{h.date}</td><td className="py-2.5" style={{fontFamily:"'JetBrains Mono',monospace",fontSize:12,color:B.t1}}>{h.unp}</td><td className="py-2.5 font-medium" style={{color:B.t1}}>{h.company}</td><td className="py-2.5"><StatusBadge status={h.result}/></td><td className="py-2.5 text-right" style={{color:B.t1}}>{h.limit>0?fmtByn(h.limit):"—"}</td></TableRow>)}</tbody></table></Card>
   </div>;
 };
 
@@ -1475,7 +1477,7 @@ const CrMassScoring = () => {
 };
 
 // ═══ CREDITOR: DOCUMENTS (full — 3 zones, enhanced UX) ═══
-const CrDocuments = ({setActive,setInitialThread}) => {
+const CrDocuments = ({setActive,setInitialThread,initialViewDoc:initDoc,onClearViewDoc,returnTo,onReturn}) => {
   const [tab,setTab]=useState("all");const [toast,setToast]=useState(null);
   const [datePreset,setDatePreset]=useState("all");const [dateFrom,setDateFrom]=useState("");const [dateTo,setDateTo]=useState("");
   const [buyerFilter,setBuyerFilter]=useState("all");const [docSearch,setDocSearch]=useState("");
@@ -1485,6 +1487,7 @@ const CrDocuments = ({setActive,setInitialThread}) => {
   const [statusFilter,setStatusFilter]=useState("all");
   const [groupFilter,setGroupFilter]=useState("all");
   const [emailInput,setEmailInput]=useState("");const [showEmail,setShowEmail]=useState(false);
+  useEffect(()=>{if(initDoc&&initDoc.length>0){const doc=allDocs.find(d=>d.name.includes(initDoc)||d.id===initDoc);if(doc)setViewDoc(doc);onClearViewDoc?.()}},[initDoc]);
   const [showUpload,setShowUpload]=useState(false);const [uploadType,setUploadType]=useState("");const [uploadDeal,setUploadDeal]=useState("");const [uploadFile,setUploadFile]=useState(null);const [uploadDesc,setUploadDesc]=useState("");
 
   const handleSign=(id)=>{setSigningDoc(id);setTimeout(()=>{setSignedDocs(prev=>{const n=new Set(prev);n.add(id);return n});setSigningDoc(null);setToast({msg:"Документ подписан ЭЦП",type:"success"})},1500)};
@@ -1521,7 +1524,7 @@ const CrDocuments = ({setActive,setInitialThread}) => {
   const allDocs=[...contracts,...dealDocs,...reportDocs,...profileDocs];
   const getStatus=(doc)=>signedDocs.has(doc.id)?"signed":doc.ecpStatus;
 
-  const typeLabels={contract:"Ген. договор",consent:"Согласие",consentBki:"Согласие БКИ",consentOeb:"Согласие ОЭБ",consentPd:"Согласие ПД",supAg:"Допсоглашение",ttn:"ТТН",act:"Акт ВР",esf:"ЭСЧФ",notify:"Уведомление",report:"Отчётность",profile:"Анкета"};
+  const typeLabels={contract:"Ген. договор",consent:"Согласие",consentBki:"Согласие БКИ",consentOeb:"Согласие ОЭБ",consentPd:"Согласие ПД",supAg:"Допсоглашение",ttn:"ТТН",act:"Акт ВР",esf:"ЭСЧФ",notify:"Увед. об уступке",report:"Отчётность",profile:"Анкета"};
   const typeIcons={contract:Shield,consent:CheckCircle,consentBki:Search,consentOeb:Shield,consentPd:Users,supAg:Gavel,esf:Receipt,ttn:FileSpreadsheet,act:CheckCircle,notify:Send,report:BarChart,profile:CircleDot};
   const tabs=[{id:"all",label:"Все",count:allDocs.length},{id:"contract",label:"Ген. договоры"},{id:"supAg",label:"Допсоглашения"},{id:"ttn",label:"ТТН"},{id:"esf",label:"ЭСЧФ"},{id:"consentBki",label:"Согласия БКИ"},{id:"consentOeb",label:"Согласия ОЭБ"},{id:"consentPd",label:"Согласия ПД"},{id:"report",label:"Отчётность"},{id:"profile",label:"Анкета"}];
   const pendingCount=allDocs.filter(d=>getStatus(d)==="pending").length;
@@ -1542,7 +1545,7 @@ const CrDocuments = ({setActive,setInitialThread}) => {
   // Doc card view
   if(viewDoc){const doc=viewDoc;const TIcon=typeIcons[doc.type]||FileText;const st=getStatus(doc);
   return <div>{toast&&<Toast message={toast.msg} type={toast.type} onClose={()=>setToast(null)}/>}
-    <button onClick={()=>setViewDoc(null)} className="flex items-center gap-1.5 text-sm font-medium mb-4 hover:underline" style={{color:B.accent}}><ArrowLeft size={16}/>Назад к реестру</button>
+    <button onClick={()=>{if(returnTo){onReturn?.()}else{setViewDoc(null)}}} className="flex items-center gap-1.5 text-sm font-medium mb-4 hover:underline" style={{color:B.accent}}><ArrowLeft size={16}/>{returnTo?"Назад":"Назад к реестру"}</button>
     <Card className="p-6 mb-5">
       <div className="flex items-start justify-between">
         <div className="flex items-center gap-4"><div className="w-12 h-12 rounded-xl flex items-center justify-center" style={{background:B.accentL}}><TIcon size={22} style={{color:B.accent}}/></div>
@@ -1564,7 +1567,7 @@ const CrDocuments = ({setActive,setInitialThread}) => {
 
   // List view
   return <div>{toast&&<Toast message={toast.msg} type={toast.type} onClose={()=>setToast(null)}/>}
-    <PageHeader title="Документы" subtitle={`${allDocs.length} документов в системе`}/>
+    <PageHeader title="Документы" subtitle={`${allDocs.length} документов · Генеральные договоры, допсоглашения, ТТН, ЭСЧФ, согласия, отчётность`}/>
 
     {pendingCount>0&&<Card className="p-4 mb-5 flex items-center justify-between" style={{background:"#FFF7ED",borderColor:"#FED7AA"}}>
       <div className="flex items-center gap-2"><AlertCircle size={16} style={{color:B.orange}}/><span className="text-sm font-bold" style={{color:B.t1}}>{pendingCount} документ{pendingCount===1?"":"а"} на подписании</span></div>
@@ -1573,7 +1576,7 @@ const CrDocuments = ({setActive,setInitialThread}) => {
 
     <div className="flex flex-wrap items-center gap-3 mb-4">
       <div className="flex flex-wrap gap-1.5">{tabs.map(t=>{const cnt=allDocs.filter(d=>t.id==="all"?true:d.type===t.id).length;return <button key={t.id} onClick={()=>setTab(t.id)} className={`px-3 py-1.5 rounded-xl text-xs font-medium transition-colors ${tab===t.id?"text-white":"text-slate-500 bg-slate-50"}`} style={tab===t.id?{background:B.accent}:undefined}>{t.label} ({cnt})</button>})}</div>
-      <div className="flex items-center gap-3 ml-auto"><div className="relative"><Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"/><input value={docSearch} onChange={e=>setDocSearch(e.target.value)} placeholder="Поиск..." className="pl-9 pr-3 py-2 w-56 text-sm rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-200"/></div><Btn icon={Upload} onClick={()=>{setShowUpload(true);setUploadType("");setUploadDeal("");setUploadFile(null);setUploadDesc("");window.scrollTo(0,0)}}>Загрузить документ</Btn></div>
+      <div className="flex items-center gap-3 ml-auto"><div className="relative"><Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"/><input value={docSearch} onChange={e=>setDocSearch(e.target.value)} placeholder="Поиск..." className="pl-9 pr-3 py-2 w-56 text-sm rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-200"/></div><Btn icon={Upload} onClick={()=>{setShowUpload(true);setUploadType("");setUploadDeal("");setUploadFile(null);setUploadDesc("");window.scrollTo(0,0)}}><InfoTooltip text="Загрузите ТТН, Акт, ЭСЧФ, отчётность или иной документ">Загрузить документ</InfoTooltip></Btn></div>
     </div>
     <div className="flex flex-wrap items-center gap-3 mb-4">
       <div className="flex gap-1.5">{[["all","Все статусы"],["pending","На подписании"],["signed","Подписаны"]].map(([v,l])=><button key={v} onClick={()=>setStatusFilter(v)} className={`px-2.5 py-1 rounded-lg text-xs font-medium ${statusFilter===v?"text-white":"text-slate-500 bg-slate-50"}`} style={statusFilter===v?{background:B.accent}:undefined}>{l}</button>)}</div>
@@ -1706,122 +1709,146 @@ const CrFinance = ({setActive}) => {
           <div className="text-right shrink-0"><div className="font-bold text-sm" style={{color:B.green}}>{fmtByn(m.received)}</div><div className="text-xs" style={{color:B.t3}}>дисконт {fmtByn(m.discount)}</div></div>
           {expandedMonth===i?<ChevronUp size={16} className="text-slate-400 shrink-0"/>:<ChevronDown size={16} className="text-slate-400 shrink-0"/>}
         </button>
-        {expandedMonth===i&&<div className="px-6 pb-4 pl-[72px]"><div className="grid grid-cols-2 lg:grid-cols-4 gap-3"><div className="rounded-xl p-3 bg-slate-50"><div className="text-xs" style={{color:B.t3}}>Уступлено</div><div className="font-bold text-sm">{fmtByn(m.total)}</div></div><div className="rounded-xl p-3 bg-slate-50"><div className="text-xs" style={{color:B.t3}}>Дисконт</div><div className="font-bold text-sm" style={{color:B.red}}>−{fmtByn(m.discount)}</div></div><div className="rounded-xl p-3 bg-slate-50"><div className="text-xs" style={{color:B.t3}}>Получено</div><div className="font-bold text-sm" style={{color:B.green}}>{fmtByn(m.received)}</div></div><div className="rounded-xl p-3 bg-slate-50"><div className="text-xs" style={{color:B.t3}}>Уступок</div><div className="font-bold text-sm">{m.deals}</div></div></div></div>}
+        {expandedMonth===i&&<div className="px-6 pb-4 pl-[72px]"><div className="grid grid-cols-2 lg:grid-cols-4 gap-3"><div className="rounded-xl p-3 bg-slate-50"><div className="text-xs" style={{color:B.t3}}>Уступлено</div><div className="font-bold text-sm">{fmtByn(m.total)}</div></div><div className="rounded-xl p-3 bg-slate-50"><div className="text-xs" style={{color:B.t3}}><InfoTooltip text="Стоимость факторинга: сумма × (ставка/365) × дни. Удерживается банком при финансировании">Дисконт</InfoTooltip></div><div className="font-bold text-sm" style={{color:B.red}}>−{fmtByn(m.discount)}</div></div><div className="rounded-xl p-3 bg-slate-50"><div className="text-xs" style={{color:B.t3}}>Получено</div><div className="font-bold text-sm" style={{color:B.green}}>{fmtByn(m.received)}</div></div><div className="rounded-xl p-3 bg-slate-50"><div className="text-xs" style={{color:B.t3}}>Уступок</div><div className="font-bold text-sm">{m.deals}</div></div></div></div>}
       </div>})}
     </Card>
   </div>;
 };
 
 // ═══ DEBTOR: DOCUMENTS (full — 3 zones, enhanced UX) ═════
-const DbDocuments = ({setActive,setInitialThread}) => {
-  const [tab,setTab]=useState("all");const [toast,setToast]=useState(null);
-  const [docSearch,setDocSearch]=useState("");
+const DbDocuments = ({setActive,setInitialThread,initialViewDoc:initDoc,onClearViewDoc,returnTo,onReturn}) => {
+  const [tab,setTab]=useState("all");const [typeTab,setTypeTab]=useState("all");
+  const [toast,setToast]=useState(null);const [docSearch,setDocSearch]=useState("");
   const [viewDoc,setViewDoc]=useState(null);const [signingDoc,setSigningDoc]=useState(null);
   const [signedDocs,setSignedDocs]=useState(new Set());
   const [selectedDocs,setSelectedDocs]=useState(new Set());
-  const [statusFilter,setStatusFilter]=useState("all");
-  const [groupFilter,setGroupFilter]=useState("all");
   const [groupByDeal,setGroupByDeal]=useState(false);
-  const [supplierFilter,setSupplierFilter]=useState("all");
-
-  const handleSign=(id)=>{setSigningDoc(id);setTimeout(()=>{setSignedDocs(prev=>{const n=new Set(prev);n.add(id);return n});setSigningDoc(null);setToast({msg:"Документ подтверждён ЭЦП",type:"success"})},1500)};
-  const handleBulkSign=()=>{setSigningDoc("bulk");setTimeout(()=>{setSignedDocs(prev=>{const n=new Set(prev);selectedDocs.forEach(id=>n.add(id));return n});setSigningDoc(null);setSelectedDocs(new Set());setToast({msg:`${selectedDocs.size} документов подтверждено ЭЦП`,type:"success"})},1500)};
+  useEffect(()=>{if(initDoc&&initDoc.length>0){const doc=allDocs.find(d=>d.name.includes(initDoc)||d.id===initDoc);if(doc)setViewDoc(doc);onClearViewDoc?.()}},[initDoc]);
   const copyReqs=()=>{copyText("Получатель: ЗАО «Нео Банк Азия»\nР/с: BY20 NEOB 3819 0000 0001 2345\nБИК: NEOBBY2X");setToast({msg:"Реквизиты скопированы",type:"success"})};
 
-  const dbContracts=SUPPLIERS.map((s,i)=>[
-    {id:`db-gd-${i+1}`,type:"contract",name:`Генеральный договор факторинга №${i+1}`,supplier:s.name,supplierId:s.id,dealId:`ГД-${i+1}`,date:"2026-01-15",amount:s.limit,ecpStatus:"signed"},
-    {id:`db-bki-${i+1}`,type:"consentBki",name:"Согласие на проверку в БКИ",supplier:s.name,supplierId:s.id,dealId:`ГД-${i+1}`,date:"2026-01-15",amount:0,ecpStatus:"signed"},
-    {id:`db-oeb-${i+1}`,type:"consentOeb",name:"Согласие на проверку ОЭБ",supplier:s.name,supplierId:s.id,dealId:`ГД-${i+1}`,date:"2026-01-15",amount:0,ecpStatus:"signed"},
-    {id:`db-pd-${i+1}`,type:"consentPd",name:"Согласие на обработку ПД",supplier:s.name,supplierId:s.id,dealId:`ГД-${i+1}`,date:"2026-01-15",amount:0,ecpStatus:"signed"},
-  ]).flat();
+  const handleSign=(id)=>{setSigningDoc(id);setTimeout(()=>{setSignedDocs(p=>{const n=new Set(p);n.add(id);return n});setSigningDoc(null);setToast({msg:"Документ подтверждён ЭЦП",type:"success"})},1500)};
+  const handleBulkSign=()=>{const pend=allDocs.filter(d=>getStatus(d)==="pending");setSigningDoc("bulk");setTimeout(()=>{setSignedDocs(p=>{const n=new Set(p);pend.forEach(d=>n.add(d.id));return n});setSigningDoc(null);setSelectedDocs(new Set());setToast({msg:`${pend.length} документов подтверждено ЭЦП`,type:"success"})},1500)};
 
+  // GDs + consents (debtor signs these at onboarding)
+  const dbContracts=SUPPLIERS.map((s,i)=>({id:`db-gd-${i+1}`,type:"contract",name:`Генеральный договор факторинга №${i+1}`,supplier:s.name,supplierId:s.id,dealId:`ГД-${i+1}`,date:"2026-01-15",amount:s.limit,ecpStatus:"signed",action:"sign"})).concat([
+    {id:"db-bki",type:"consentBki",name:"Согласие на проверку в БКИ",supplier:COMPANY.name,supplierId:0,dealId:"Онбординг",date:"2026-01-15",amount:0,ecpStatus:"signed",action:"sign"},
+    {id:"db-oeb",type:"consentOeb",name:"Согласие на проверку ОЭБ",supplier:COMPANY.name,supplierId:0,dealId:"Онбординг",date:"2026-01-15",amount:0,ecpStatus:"signed",action:"sign"},
+    {id:"db-pd",type:"consentPd",name:"Согласие на обработку ПД",supplier:COMPANY.name,supplierId:0,dealId:"Онбординг",date:"2026-01-15",amount:0,ecpStatus:"signed",action:"sign"},
+  ]);
+
+  // Deal docs
   const dbDealDocs=DB_DEALS.flatMap(d=>{const sup=SUPPLIERS.find(s=>s.id===d.supplierId);const num=d.id.split("-")[2];return[
-    {id:`db-ds-${num}`,type:"supAg",name:`ДС №${num} к ГД№1`,supplier:sup?.name||"",supplierId:d.supplierId,dealId:d.id,date:d.notifyDate,amount:d.amount,ecpStatus:"signed"},
-    {id:`db-ttn-${num}`,type:"ttn",name:`ТТН_${num}.pdf`,supplier:sup?.name||"",supplierId:d.supplierId,dealId:d.id,date:d.shipDate,amount:d.amount,ecpStatus:"signed"},
-    {id:`db-esf-${num}`,type:"esf",name:`ЭСЧФ_${num}.pdf`,supplier:sup?.name||"",supplierId:d.supplierId,dealId:d.id,date:d.shipDate,amount:d.amount,ecpStatus:"signed"},
-    {id:`db-ntf-${num}`,type:"notify",name:`Уведомление_${num}`,supplier:sup?.name||"",supplierId:d.supplierId,dealId:d.id,date:d.notifyDate,amount:d.amount,ecpStatus:d.confirmed?"signed":"pending",dueDate:d.dueDate,daysLeft:d.daysLeft,product:d.product},
+    {id:`db-ds-${num}`,type:"supAg",name:`ДС №${num} к ГД№1`,supplier:sup?.name||"",supplierId:d.supplierId,dealId:d.id,date:d.notifyDate,amount:d.amount,ecpStatus:"view",action:"view"},
+    {id:`db-ttn-${num}`,type:"ttn",name:`ТТН_${num}.pdf`,supplier:sup?.name||"",supplierId:d.supplierId,dealId:d.id,date:d.shipDate,amount:d.amount,ecpStatus:"view",action:"view"},
+    {id:`db-esf-${num}`,type:"esf",name:`ЭСЧФ_${num}.pdf`,supplier:sup?.name||"",supplierId:d.supplierId,dealId:d.id,date:d.shipDate,amount:d.amount,ecpStatus:"view",action:"view"},
+    {id:`db-ntf-${num}`,type:"notify",name:`Уведомление_${num}`,supplier:sup?.name||"",supplierId:d.supplierId,dealId:d.id,date:d.notifyDate,amount:d.amount,ecpStatus:d.confirmed?"signed":"pending",action:"sign",dueDate:d.dueDate,daysLeft:d.daysLeft,product:d.product},
   ]});
 
   const allDocs=[...dbContracts,...dbDealDocs];
   const getStatus=(doc)=>signedDocs.has(doc.id)?"signed":doc.ecpStatus;
-  const typeLabels={contract:"Ген. договор",consentBki:"Согласие БКИ",consentOeb:"Согласие ОЭБ",consentPd:"Согласие ПД",supAg:"Допсоглашение",ttn:"ТТН",esf:"ЭСЧФ",notify:"Уведомление"};
-  const typeIcons={contract:Shield,consentBki:Search,consentOeb:Shield,consentPd:Users,supAg:Gavel,esf:Receipt,ttn:FileSpreadsheet,notify:Send};
-  const tabs=[{id:"all",label:"Все"},{id:"contract",label:"Ген. договоры"},{id:"supAg",label:"Допсоглашения"},{id:"ttn",label:"ТТН"},{id:"esf",label:"ЭСЧФ"},{id:"notify",label:"Уведомления"},{id:"consentBki",label:"Согласия БКИ"},{id:"consentOeb",label:"Согласия ОЭБ"},{id:"consentPd",label:"Согласия ПД"}];
   const pendingCount=allDocs.filter(d=>getStatus(d)==="pending").length;
-  const uniqueSuppliers=[...new Map(allDocs.map(d=>[d.supplierId,d.supplier])).entries()];
+
+  const typeLabels={contract:"Ген. договор",consentBki:"Согласие БКИ",consentOeb:"Согласие ОЭБ",consentPd:"Согласие ПД",supAg:"Допсоглашение",ttn:"ТТН",esf:"ЭСЧФ",notify:"Увед. об уступке"};
+  const typeIcons={contract:Shield,consentBki:Search,consentOeb:Shield,consentPd:Users,supAg:Gavel,esf:Receipt,ttn:FileSpreadsheet,notify:Send};
 
   const filtered=allDocs.filter(d=>{
     if(docSearch){const q=docSearch.toLowerCase();if(!d.name.toLowerCase().includes(q)&&!d.dealId.toLowerCase().includes(q)&&!(d.supplier||"").toLowerCase().includes(q))return false}
-    if(tab!=="all"&&d.type!==tab)return false;
-    if(statusFilter==="pending"&&getStatus(d)!=="pending")return false;
-    if(statusFilter==="signed"&&getStatus(d)!=="signed")return false;
-    if(supplierFilter!=="all"&&d.supplierId!==Number(supplierFilter))return false;
+    const st=getStatus(d);
+    if(tab==="pending"&&st!=="pending")return false;
+    if(tab==="signed"&&st!=="signed")return false;
+    if(tab==="view"&&st!=="view")return false;
+    if(typeTab!=="all"&&d.type!==typeTab)return false;
     return true;
   });
 
-  const toggleDoc=(id)=>setSelectedDocs(p=>{const n=new Set(p);n.has(id)?n.delete(id):n.add(id);return n});
-  const toggleAll=()=>{if(selectedDocs.size===filtered.length&&filtered.length>0)setSelectedDocs(new Set());else setSelectedDocs(new Set(filtered.map(d=>d.id)))};
+  const toggleDoc=(id)=>{const doc=allDocs.find(d=>d.id===id);if(getStatus(doc)!=="pending")return;setSelectedDocs(p=>{const n=new Set(p);n.has(id)?n.delete(id):n.add(id);return n})};
+  const selectAllPending=()=>{const pend=filtered.filter(d=>getStatus(d)==="pending");if(selectedDocs.size===pend.length)setSelectedDocs(new Set());else setSelectedDocs(new Set(pend.map(d=>d.id)))};
 
-  // Doc card view
-  if(viewDoc){const doc=viewDoc;const TIcon=typeIcons[doc.type]||FileText;const st=getStatus(doc);
+  const StatusCell=({st})=>st==="signed"?<span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px]" style={{background:B.greenL,color:B.green}}><Shield size={9}/>Подписан</span>:st==="pending"?<span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px]" style={{background:B.redL,color:B.red}}><Pen size={9}/>Подписать</span>:<span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px]" style={{background:"#f1f5f9",color:B.t3}}><Eye size={9}/>Просмотр</span>;
+
+  // Card view
+  if(viewDoc){const doc=viewDoc;const TIcon=typeIcons[doc.type]||FileText;const st=getStatus(doc);const isSignable=doc.action==="sign";
   return <div>{toast&&<Toast message={toast.msg} type={toast.type} onClose={()=>setToast(null)}/>}
-    <button onClick={()=>setViewDoc(null)} className="flex items-center gap-1.5 text-sm font-medium mb-4 hover:underline" style={{color:B.purple}}><ArrowLeft size={16}/>Назад к реестру</button>
-    <Card className="p-6 mb-5">
-      <div className="flex items-start justify-between">
-        <div className="flex items-center gap-4"><div className="w-12 h-12 rounded-xl flex items-center justify-center" style={{background:B.purpleL}}><TIcon size={22} style={{color:B.purple}}/></div>
-        <div><h1 className="text-xl font-bold" style={{color:B.t1}}>{doc.name}</h1><div className="text-sm mt-1" style={{color:B.t3}}>{typeLabels[doc.type]} · {doc.dealId} · {doc.supplier} · {doc.date}</div></div></div>
-        <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-sm font-medium" style={{background:st==="signed"?B.greenL:B.yellowL,color:st==="signed"?B.green:B.yellow}}>{st==="signed"?<><Shield size={12}/>Подтверждён</>:<><Loader2 size={12}/>Ожидает подтверждения</>}</span>
-      </div>
-    </Card>
-    {doc.type==="notify"&&<Card className="p-5 mb-5" style={{background:"#F5F3FF"}}><div className="flex items-start gap-2"><Info size={16} style={{color:B.purple}} className="shrink-0 mt-0.5"/><div className="text-sm" style={{color:B.t1}}><strong>Что это значит?</strong> Ваш поставщик передал банку право получить оплату за вашу поставку. Теперь вы платите банку, а не поставщику.</div></div></Card>}
+    <button onClick={()=>{if(returnTo){onReturn?.()}else{setViewDoc(null)}}} className="flex items-center gap-1.5 text-sm font-medium mb-4 hover:underline" style={{color:B.purple}}><ArrowLeft size={16}/>{returnTo?"Назад":"Назад к реестру"}</button>
+    <Card className="p-6 mb-5"><div className="flex items-start justify-between">
+      <div className="flex items-center gap-4"><div className="w-12 h-12 rounded-xl flex items-center justify-center" style={{background:B.purpleL}}><TIcon size={22} style={{color:B.purple}}/></div>
+      <div><h1 className="text-xl font-bold" style={{color:B.t1}}>{doc.name}</h1><div className="text-sm mt-1" style={{color:B.t3}}>{typeLabels[doc.type]} · {doc.dealId} · {doc.supplier} · {doc.date}</div></div></div>
+      <StatusCell st={st}/>
+    </div></Card>
+
+    {doc.type==="notify"&&st==="pending"&&<Card className="p-5 mb-5" style={{background:"#F5F3FF"}}><div className="flex items-start gap-2"><Info size={16} style={{color:B.purple}} className="shrink-0 mt-0.5"/><div className="text-sm" style={{color:B.t1}}><strong>Что это значит?</strong> Ваш поставщик передал банку право получить оплату за эту поставку. Подтверждая, вы обязуетесь оплатить на счёт банка.</div></div></Card>}
+    {!isSignable&&<Card className="p-4 mb-5" style={{background:"#f1f5f9"}}><div className="flex items-center gap-2 text-sm" style={{color:B.t3}}><Eye size={16}/>Этот документ подписан кредитором и банком. Вам подписание не требуется.</div></Card>}
+
     <Card className="p-6 mb-5"><div className="text-xs font-medium mb-2" style={{color:B.t3}}>Превью документа</div><div className="rounded-xl border-2 border-dashed border-slate-200 h-48 flex items-center justify-center" style={{background:"#FAFBFC"}}><div className="text-center"><FileText size={32} className="mx-auto mb-2 text-slate-300"/><div className="text-sm" style={{color:B.t3}}>{doc.name}</div></div></div></Card>
+
     {doc.type==="notify"&&<Card className="p-5 mb-5" style={{borderColor:B.purple+"30"}}><div className="text-[10px] uppercase tracking-wider font-bold mb-2" style={{color:B.purple}}>Реквизиты для оплаты</div><div className="space-y-1.5 text-sm">{[["Получатель","ЗАО «Нео Банк Азия»"],["Р/с","BY20 NEOB 3819 0000 0001 2345"],["БИК","NEOBBY2X"]].map(([l,v],i)=><div key={i} className="flex justify-between"><span style={{color:B.t3}}>{l}</span><span className="font-medium" style={{color:B.t1,fontFamily:i>0?"'JetBrains Mono',monospace":undefined}}>{v}</span></div>)}</div><Btn size="sm" variant="secondary" className="w-full mt-3" icon={ExternalLink} onClick={copyReqs}>Скопировать реквизиты</Btn></Card>}
-    {(doc.type==="contract"||doc.type==="notify")&&<Card className="p-5 mb-5"><h3 className="text-sm font-bold mb-3" style={{color:B.t1}}>История подписания</h3><div className="space-y-2">{[{who:"Кредитор (поставщик)",date:doc.date,done:true},{who:"Банк — ЗАО «Нео Банк Азия»",date:doc.date,done:true},{who:"Должник — "+COMPANY.name,date:st==="signed"?doc.date:"—",done:st==="signed"}].map((s,i)=><div key={i} className="flex items-center gap-3 text-xs p-2 rounded-lg bg-slate-50">{s.done?<CheckCircle size={13} style={{color:B.green}}/>:<Loader2 size={13} style={{color:B.yellow}}/>}<span className="font-medium flex-1" style={{color:B.t1}}>{s.who}</span><span style={{color:B.t3}}>{s.date}</span></div>)}</div></Card>}
+
+    <Card className="p-5 mb-5"><h3 className="text-sm font-bold mb-3" style={{color:B.t1}}>Подписанты</h3><div className="space-y-2">
+      {isSignable?[{who:"Кредитор (поставщик)",done:true},{who:"Банк — ЗАО «Нео Банк Азия»",done:true},{who:"Должник — "+COMPANY.name,done:st==="signed"}].map((s,i)=><div key={i} className="flex items-center gap-3 text-xs p-2 rounded-lg bg-slate-50">{s.done?<CheckCircle size={13} style={{color:B.green}}/>:<Loader2 size={13} style={{color:B.yellow}}/>}<span className="font-medium flex-1" style={{color:B.t1}}>{s.who}</span><span style={{color:s.done?B.green:B.yellow}}>{s.done?"ЭЦП ✓":"Ожидает вашей подписи"}</span></div>)
+      :[{who:"Кредитор (поставщик)",done:true},{who:"Банк — ЗАО «Нео Банк Азия»",done:true}].map((s,i)=><div key={i} className="flex items-center gap-3 text-xs p-2 rounded-lg bg-slate-50"><CheckCircle size={13} style={{color:B.green}}/><span className="font-medium flex-1" style={{color:B.t1}}>{s.who}</span><span style={{color:B.green}}>ЭЦП ✓</span></div>)}
+    </div></Card>
+
     <div className="flex flex-wrap gap-2 mb-5">
       {st==="pending"&&<Btn icon={signingDoc===doc.id?Loader2:Pen} disabled={!!signingDoc} onClick={()=>handleSign(doc.id)} style={{background:B.purple}}>{signingDoc===doc.id?"Подписание...":"Подтвердить ЭЦП"}</Btn>}
       <Btn variant="secondary" icon={Download} onClick={()=>setToast({msg:`${doc.name} скачан`,type:"info"})}>Скачать PDF</Btn>
-      <Btn variant="secondary" icon={MessageCircle} onClick={()=>{setInitialThread?.(doc.dealId);setActive("db-messages")}}>Обсудить</Btn>
+      {doc.dealId.startsWith("УС")&&<Btn variant="secondary" icon={MessageCircle} onClick={()=>{setInitialThread?.(doc.dealId);setActive("db-messages")}}>Обсудить</Btn>}
     </div>
-    {(doc.type==="supAg"||doc.type==="ttn"||doc.type==="esf"||doc.type==="notify")&&<Card className="p-5"><h3 className="text-sm font-bold mb-3" style={{color:B.t1}}>Связанные документы по {doc.dealId}</h3><div className="space-y-1.5">{allDocs.filter(rd=>rd.dealId===doc.dealId&&rd.id!==doc.id).map((rd,i)=>{const RI=typeIcons[rd.type]||FileText;return <div key={i} className="flex items-center gap-3 py-2 text-xs cursor-pointer hover:bg-slate-50 rounded-lg px-2 -mx-2" onClick={()=>setViewDoc(rd)}><RI size={13} style={{color:B.purple}}/><span className="font-medium flex-1" style={{color:B.t1}}>{rd.name}</span><span className="px-1.5 py-0.5 rounded bg-slate-100 text-[10px]" style={{color:B.t3}}>{typeLabels[rd.type]}</span><span className="text-[10px]" style={{color:getStatus(rd)==="signed"?B.green:B.yellow}}>{getStatus(rd)==="signed"?"ЭЦП ✓":"Ожидает"}</span></div>})}</div></Card>}
+
+    {(doc.dealId.startsWith("УС")||doc.dealId.startsWith("ГД"))&&<Card className="p-5"><h3 className="text-sm font-bold mb-3" style={{color:B.t1}}>Связанные документы</h3><div className="space-y-1.5">{allDocs.filter(rd=>rd.dealId===doc.dealId&&rd.id!==doc.id).map((rd,i)=>{const RI=typeIcons[rd.type]||FileText;const rs=getStatus(rd);return <div key={i} className="flex items-center gap-3 py-2 text-xs cursor-pointer hover:bg-slate-50 rounded-lg px-2 -mx-2" onClick={()=>setViewDoc(rd)}><RI size={13} style={{color:B.purple}}/><span className="font-medium flex-1" style={{color:B.t1}}>{rd.name}</span><StatusCell st={rs}/></div>})}</div></Card>}
   </div>}
 
   // List view
   return <div>{toast&&<Toast message={toast.msg} type={toast.type} onClose={()=>setToast(null)}/>}
-    <PageHeader title="Документы" subtitle={`${allDocs.length} документов в системе`}/>
+    <PageHeader title="Документы" subtitle={`${allDocs.length} документов · ${pendingCount>0?pendingCount+" на подписании":"всё подписано"}`}/>
 
-    {pendingCount>0&&<Card className="p-4 mb-5 flex items-center justify-between" style={{background:"#F5F3FF",borderColor:"#C4B5FD"}}>
-      <div className="flex items-center gap-2"><AlertCircle size={16} style={{color:B.purple}}/><span className="text-sm font-bold" style={{color:B.t1}}>{pendingCount} уведомлени{pendingCount===1?"е":"я"} ожида{pendingCount===1?"ет":"ют"} подтверждения</span></div>
-      <Btn size="sm" icon={Pen} onClick={()=>{const pend=allDocs.filter(d=>getStatus(d)==="pending");setSelectedDocs(new Set(pend.map(d=>d.id)));handleBulkSign()}} style={{background:B.purple}}>Подтвердить все ({pendingCount})</Btn>
+    {pendingCount>0&&<Card className="p-4 mb-5 flex items-center justify-between" style={{background:"#FEF2F2",borderColor:"#FECACA"}}>
+      <div className="flex items-center gap-2"><AlertCircle size={18} style={{color:B.red}}/><div><span className="text-sm font-bold" style={{color:B.red}}>{pendingCount} документ{pendingCount===1?"":"а"} требу{pendingCount===1?"ет":"ют"} вашей подписи</span><div className="text-xs mt-0.5" style={{color:B.t2}}>Подпишите все документы, чтобы процесс не останавливался</div></div></div>
+      <Btn icon={signingDoc==="bulk"?Loader2:Pen} disabled={!!signingDoc} onClick={handleBulkSign} style={{background:B.red}}>{signingDoc==="bulk"?"Подписание...":"Подписать все ("+pendingCount+")"}</Btn>
     </Card>}
 
-    <div className="flex flex-wrap items-center gap-3 mb-4">
-      <div className="flex flex-wrap gap-1.5">{tabs.map(t=>{const cnt=allDocs.filter(d=>d.type===t.id||t.id==="all").length;return <button key={t.id} onClick={()=>setTab(t.id)} className={`px-3 py-1.5 rounded-xl text-xs font-medium transition-colors ${tab===t.id?"text-white":"text-slate-500 bg-slate-50"}`} style={tab===t.id?{background:B.purple}:undefined}>{t.label} ({t.id==="all"?allDocs.length:allDocs.filter(d=>d.type===t.id).length})</button>})}</div>
+    <div className="flex flex-wrap items-center gap-3 mb-3">
+      <div className="flex gap-1.5">{[["all","Все ("+allDocs.length+")"],["pending","На подписании ("+pendingCount+")"],["signed","Подписаны"],["view","Только просмотр"]].map(([v,l])=><button key={v} onClick={()=>setTab(v)} className={`px-3 py-1.5 rounded-xl text-xs font-medium transition-colors ${tab===v?"text-white":"text-slate-500 bg-slate-50"}`} style={tab===v?{background:v==="pending"?B.red:B.purple}:undefined}>{l}</button>)}</div>
       <div className="relative ml-auto"><Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"/><input value={docSearch} onChange={e=>setDocSearch(e.target.value)} placeholder="Поиск..." className="pl-9 pr-3 py-2 w-56 text-sm rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-purple-200"/></div>
     </div>
     <div className="flex flex-wrap items-center gap-3 mb-4">
-      <div className="flex gap-1.5">{[["all","Все статусы"],["pending","Ожидают подтверждения"],["signed","Подтверждены"]].map(([v,l])=><button key={v} onClick={()=>setStatusFilter(v)} className={`px-2.5 py-1 rounded-lg text-xs font-medium ${statusFilter===v?"text-white":"text-slate-500 bg-slate-50"}`} style={statusFilter===v?{background:B.purple}:undefined}>{l}</button>)}</div>
-      <select value={supplierFilter} onChange={e=>setSupplierFilter(e.target.value)} className="px-2.5 py-1.5 rounded-lg border border-slate-200 text-xs"><option value="all">Все поставщики</option>{uniqueSuppliers.map(([id,name])=><option key={id} value={id}>{name}</option>)}</select>
+      <div className="flex gap-1.5">{[["all","Все типы"],["contract","Ген. договоры"],["notify","Уведомления"],["supAg","Допсоглашения"],["ttn","ТТН"],["esf","ЭСЧФ"],["consentBki","БКИ"],["consentOeb","ОЭБ"],["consentPd","ПД"]].map(([v,l])=><button key={v} onClick={()=>setTypeTab(v)} className={`px-2.5 py-1 rounded-lg text-xs font-medium ${typeTab===v?"text-white":"text-slate-500 bg-slate-50"}`} style={typeTab===v?{background:B.purple}:undefined}>{l}</button>)}</div>
       <div className="flex items-center gap-2 ml-auto"><span className="text-xs" style={{color:B.t3}}>Группировка:</span><button onClick={()=>setGroupByDeal(!groupByDeal)} className="relative w-9 h-5 rounded-full transition-colors" style={{background:groupByDeal?B.purple:"#CBD5E1"}}><span className="absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-all" style={{left:groupByDeal?18:2}}/></button></div>
     </div>
 
-    {selectedDocs.size>0&&<div className="sticky top-0 z-30 bg-white py-3 px-5 mb-3 rounded-xl border shadow-md flex items-center justify-between" style={{borderColor:B.purple}}><span className="text-sm font-medium" style={{color:B.t1}}>Выбрано: {selectedDocs.size}</span><div className="flex gap-2"><Btn size="sm" icon={signingDoc==="bulk"?Loader2:Pen} disabled={!!signingDoc} onClick={handleBulkSign} style={{background:B.purple}}>Подтвердить ЭЦП</Btn><Btn size="sm" variant="secondary" icon={Download} onClick={()=>setToast({msg:`${selectedDocs.size} документов скачано (ZIP)`,type:"info"})}>Скачать ZIP</Btn><button onClick={()=>setSelectedDocs(new Set())} className="p-1.5 rounded hover:bg-slate-100"><X size={14} className="text-slate-400"/></button></div></div>}
+    {selectedDocs.size>0&&<div className="sticky top-0 z-30 bg-white py-3 px-5 mb-3 rounded-xl border shadow-md flex items-center justify-between" style={{borderColor:B.purple}}><span className="text-sm font-medium" style={{color:B.t1}}>Выбрано: {selectedDocs.size}</span><div className="flex gap-2"><Btn size="sm" icon={signingDoc==="bulk"?Loader2:Pen} disabled={!!signingDoc} onClick={()=>{setSigningDoc("sel");setTimeout(()=>{setSignedDocs(p=>{const n=new Set(p);selectedDocs.forEach(id=>n.add(id));return n});setSigningDoc(null);setSelectedDocs(new Set());setToast({msg:`${selectedDocs.size} документов подтверждено`,type:"success"})},1500)}} style={{background:B.purple}}>Подписать ЭЦП</Btn><Btn size="sm" variant="secondary" icon={Download} onClick={()=>setToast({msg:"Скачано (ZIP)",type:"info"})}>Скачать ZIP</Btn><button onClick={()=>setSelectedDocs(new Set())} className="p-1.5 rounded hover:bg-slate-100"><X size={14} className="text-slate-400"/></button></div></div>}
 
-    <Card className="overflow-hidden"><div className="overflow-x-auto"><table className="w-full text-sm"><thead><tr className="text-xs text-left border-b border-slate-100" style={{color:B.t3,background:"#FAFBFC"}}><th className="px-3 py-3 w-8"><input type="checkbox" checked={selectedDocs.size===filtered.length&&filtered.length>0} onChange={toggleAll} className="rounded"/></th><th className="px-3 py-3 font-medium">Документ</th><th className="px-3 py-3 font-medium">Тип</th><th className="px-3 py-3 font-medium">Привязка</th><th className="px-3 py-3 font-medium">Поставщик</th><th className="px-3 py-3 font-medium">Дата</th><th className="px-3 py-3 font-medium text-center">Статус</th><th className="px-3 py-3 font-medium text-center">Действия</th></tr></thead>
+    {groupByDeal?<Card className="overflow-hidden"><div className="divide-y divide-slate-100">{Object.entries(filtered.reduce((acc,doc)=>{(acc[doc.dealId]=acc[doc.dealId]||[]).push(doc);return acc},{})).map(([dealId,docs])=>{const pendInGroup=docs.filter(d=>getStatus(d)==="pending").length;const isOpen=selectedDocs.has("g-"+dealId);return <div key={dealId}>
+      <div className="px-5 py-3 flex items-center gap-3 cursor-pointer hover:bg-slate-50" onClick={()=>setSelectedDocs(p=>{const n=new Set(p);const k="g-"+dealId;n.has(k)?n.delete(k):n.add(k);return n})}>
+        {isOpen?<ChevronDown size={14} style={{color:B.purple}}/>:<ChevronRight size={14} style={{color:B.t3}}/>}
+        <span className="text-xs font-bold" style={{color:B.purple,fontFamily:"'JetBrains Mono',monospace"}}>{dealId}</span>
+        <span className="text-xs" style={{color:B.t3}}>{docs[0]?.supplier} · {docs.length} док.</span>
+        {pendInGroup>0?<span className="px-2 py-0.5 rounded-full text-[10px] font-bold" style={{background:B.redL,color:B.red}}>⚠ {pendInGroup} на подписании</span>:<span className="px-2 py-0.5 rounded-full text-[10px] font-bold" style={{background:B.greenL,color:B.green}}>✅ Всё подписано</span>}
+      </div>
+      {isOpen&&<div className="px-5 pb-3 ml-5 space-y-1">{docs.map((doc,i)=>{const TIcon=typeIcons[doc.type]||FileText;const st=getStatus(doc);return <div key={i} className="flex items-center gap-3 py-1.5 text-xs cursor-pointer hover:bg-slate-50 rounded-lg px-2 -mx-2" onClick={()=>setViewDoc(doc)}>
+        <TIcon size={13} style={{color:B.purple}}/><span className="font-medium flex-1" style={{color:B.t1}}>{doc.name}</span>
+        <span className="px-1.5 py-0.5 rounded bg-slate-100 text-[10px]" style={{color:B.t2}}>{typeLabels[doc.type]}</span>
+        <StatusCell st={st}/>
+        {st==="pending"&&<button onClick={e=>{e.stopPropagation();handleSign(doc.id)}} className="px-2 py-0.5 rounded-lg text-[10px] font-medium text-white" style={{background:B.purple}}>ЭЦП</button>}
+        <button onClick={e=>{e.stopPropagation();setToast({msg:"Скачан",type:"info"})}} className="p-1 rounded hover:bg-slate-100"><Download size={11} className="text-slate-400"/></button>
+      </div>})}</div>}
+    </div>})}</div></Card>
+
+    :<Card className="overflow-hidden"><div className="overflow-x-auto"><table className="w-full text-sm"><thead><tr className="text-xs text-left border-b border-slate-100" style={{color:B.t3,background:"#FAFBFC"}}><th className="px-3 py-3 w-8"><input type="checkbox" checked={selectedDocs.size>0&&selectedDocs.size===filtered.filter(d=>getStatus(d)==="pending").length} onChange={selectAllPending} className="rounded"/></th><th className="px-3 py-3 font-medium">Документ</th><th className="px-3 py-3 font-medium">Тип</th><th className="px-3 py-3 font-medium">Привязка</th><th className="px-3 py-3 font-medium">Поставщик</th><th className="px-3 py-3 font-medium">Дата</th><th className="px-3 py-3 font-medium text-center">Статус</th><th className="px-3 py-3 font-medium text-center">Действия</th></tr></thead>
     <tbody>{filtered.map(doc=>{const TIcon=typeIcons[doc.type]||FileText;const st=getStatus(doc);return <tr key={doc.id} className="border-b border-slate-50 hover:bg-slate-50 transition-colors">
-      <td className="px-3 py-2.5"><input type="checkbox" checked={selectedDocs.has(doc.id)} onChange={()=>toggleDoc(doc.id)} className="rounded"/></td>
+      <td className="px-3 py-2.5">{st==="pending"?<input type="checkbox" checked={selectedDocs.has(doc.id)} onChange={()=>toggleDoc(doc.id)} className="rounded"/>:<span className="w-4"/>}</td>
       <td className="px-3 py-2.5 cursor-pointer" onClick={()=>setViewDoc(doc)}><div className="flex items-center gap-2"><TIcon size={13} style={{color:B.purple}}/><span className="font-medium text-xs hover:underline" style={{color:B.purple}}>{doc.name}</span></div></td>
       <td className="px-3 py-2.5"><span className="px-2 py-0.5 rounded-lg text-[10px] bg-slate-100" style={{color:B.t2}}>{typeLabels[doc.type]}</span></td>
       <td className="px-3 py-2.5 text-xs" style={{fontFamily:"'JetBrains Mono',monospace",color:B.t2}}>{doc.dealId}</td>
       <td className="px-3 py-2.5 text-xs" style={{color:B.t1}}>{doc.supplier}</td>
       <td className="px-3 py-2.5 text-xs" style={{color:B.t2}}>{doc.date}</td>
-      <td className="px-3 py-2.5 text-center">{st==="signed"?<span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px]" style={{background:B.greenL,color:B.green}}><Shield size={9}/>ЭЦП</span>:<span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px]" style={{background:B.yellowL,color:B.yellow}}><Loader2 size={9}/>Ожидает</span>}</td>
-      <td className="px-3 py-2.5 text-center"><div className="flex items-center justify-center gap-1">{st==="pending"&&<button onClick={()=>handleSign(doc.id)} className="px-2 py-0.5 rounded-lg text-[10px] font-medium text-white" style={{background:B.purple}}>ЭЦП</button>}<button onClick={()=>setToast({msg:"Скачан",type:"info"})} className="p-1 rounded hover:bg-slate-100"><Download size={12} className="text-slate-400"/></button><button onClick={()=>{setInitialThread?.(doc.dealId);setActive("db-messages")}} className="flex items-center gap-1 px-1.5 py-0.5 rounded-lg text-[10px] font-medium hover:bg-purple-50" style={{color:B.purple}}><MessageCircle size={10}/>Обсудить</button></div></td>
-    </tr>})}</tbody></table></div></Card>
+      <td className="px-3 py-2.5 text-center"><StatusCell st={st}/></td>
+      <td className="px-3 py-2.5 text-center"><div className="flex items-center justify-center gap-1">{st==="pending"&&<button onClick={()=>handleSign(doc.id)} className="px-2 py-0.5 rounded-lg text-[10px] font-medium text-white" style={{background:B.purple}}>ЭЦП</button>}<button onClick={()=>setToast({msg:"Скачан",type:"info"})} className="p-1 rounded hover:bg-slate-100"><Download size={12} className="text-slate-400"/></button>{doc.dealId.startsWith("УС")&&<button onClick={()=>{setInitialThread?.(doc.dealId);setActive("db-messages")}} className="flex items-center gap-1 px-1.5 py-0.5 rounded-lg text-[10px] font-medium hover:bg-purple-50" style={{color:B.purple}}><MessageCircle size={10}/>Обсудить</button>}</div></td>
+    </tr>})}</tbody></table></div></Card>}
   </div>;
 };
 
 
-const CrBuyers = ({setActive,setInitialThread}) => {
+const CrBuyers = ({setActive,setInitialThread,setInitialExpandDeal,setInitialShowWizard,setReturnTo}) => {
   const [filter,setFilter]=useState("all");
   const [viewBuyer,setViewBuyer]=useState(null);
   const [toast,setToast]=useState(null);
@@ -1840,7 +1867,7 @@ const CrBuyers = ({setActive,setInitialThread}) => {
           <div className="flex items-center gap-3"><h1 className="text-xl font-bold" style={{color:B.t1}}>{b.name}</h1><StatusBadge status={b.status} size="md"/></div>
           <div className="text-sm mt-1" style={{color:B.t3}}>УНП {b.unp} · На платформе с {b.regDate}</div>
           {b.status==="green"&&<div className="flex gap-2 mt-3">
-            <Btn icon={Plus} onClick={()=>setActive("cr-deals")}>Создать уступку</Btn>
+            <Btn icon={Plus} onClick={()=>{setInitialShowWizard?.(true);setActive("cr-deals")}}>Создать уступку</Btn>
             <Btn variant="secondary" icon={MessageCircle} onClick={()=>{if(activeBD[0])setInitialThread?.(activeBD[0].id);setActive("cr-messages")}}>Написать</Btn>
           </div>}
         </div>
@@ -1848,7 +1875,7 @@ const CrBuyers = ({setActive,setInitialThread}) => {
     </Card>
 
     {b.status==="green"?<><div className="grid grid-cols-4 gap-4 mb-5">
-      <Card className="p-4"><div className="text-[10px] uppercase tracking-wide mb-1" style={{color:B.t3}}>Лимит</div><div className="text-xl font-bold" style={{color:B.t1}}>{fmtByn(b.limit)}</div></Card>
+      <Card className="p-4"><div className="text-[10px] uppercase tracking-wide mb-1" style={{color:B.t3}}><InfoTooltip text="Максимальная сумма активных уступок по покупателю, установленная банком">Лимит</InfoTooltip></div><div className="text-xl font-bold" style={{color:B.t1}}>{fmtByn(b.limit)}</div></Card>
       <Card className="p-4"><div className="text-[10px] uppercase tracking-wide mb-1" style={{color:B.t3}}>Использовано</div><div className="text-xl font-bold" style={{color:B.t1}}>{fmtByn(b.used)}</div><div className="h-1.5 rounded-full bg-slate-100 mt-2"><div className="h-full rounded-full" style={{width:`${usePct}%`,background:usePct>80?B.red:B.accent}}/></div><div className="text-[10px] mt-1" style={{color:B.t3}}>{usePct}%</div></Card>
       <Card className="p-4"><div className="text-[10px] uppercase tracking-wide mb-1" style={{color:B.green}}>Доступно</div><div className="text-xl font-bold" style={{color:B.green}}>{fmtByn(b.available)}</div></Card>
       <Card className="p-4"><div className="text-[10px] uppercase tracking-wide mb-1" style={{color:B.t3}}>Стоимость факторинга</div><div className="text-lg font-bold" style={{color:B.accent}}>{calcPeriodRate(b.rate,30)}%<span className="text-xs font-normal" style={{color:B.t3}}>/30д</span></div><div className="text-[10px]" style={{color:B.t3}}>{calcPeriodRate(b.rate,60)}%/60д · {calcPeriodRate(b.rate,90)}%/90д</div></Card>
@@ -1856,13 +1883,13 @@ const CrBuyers = ({setActive,setInitialThread}) => {
 
     {activeBD.length>0&&<Card className="p-5 mb-5">
       <div className="flex items-center justify-between mb-3"><h3 className="text-sm font-bold" style={{color:B.t1}}>Активные уступки ({activeBD.length})</h3><span className="text-xs" style={{color:B.t3}}>Сумма: {fmtByn(activeBD.reduce((s,d)=>s+d.amount,0))}</span></div>
-      <div className="space-y-2">{activeBD.map(d=><div key={d.id} className="flex items-center gap-3 p-3 rounded-xl border border-slate-100 hover:shadow-sm transition-all">
+      <div className="space-y-2">{activeBD.map(d=><div key={d.id} className="flex items-center gap-3 p-3 rounded-xl border border-slate-100 hover:shadow-sm hover:border-blue-200 cursor-pointer transition-all" onClick={()=>{setInitialExpandDeal?.(d.id);setReturnTo?.("cr-buyers");setActive("cr-deals")}}>
         <span className="text-xs font-bold" style={{color:B.accent,fontFamily:"'JetBrains Mono',monospace"}}>{d.id}</span>
         <span className="flex-1 text-xs" style={{color:B.t1}}>{fmtByn(d.amount)}</span>
         <span className="px-1.5 py-0.5 rounded bg-slate-100 text-[9px]" style={{color:B.t3}}>{d.term} дн. · {calcPeriodRate(b.rate,d.term)}%</span>
         <StatusBadge status={d.status}/>
         <span className="text-xs" style={{color:d.daysLeft<14?B.yellow:B.green}}>{d.daysLeft} дн.</span>
-        <button onClick={()=>{setInitialThread?.(d.id);setActive("cr-messages")}} className="flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-medium hover:bg-blue-50" style={{color:B.accent}}><MessageCircle size={10}/>Обсудить</button>
+        <button onClick={e=>{e.stopPropagation();setInitialThread?.(d.id);setActive("cr-messages")}} className="flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-medium hover:bg-blue-50" style={{color:B.accent}}><MessageCircle size={10}/>Обсудить</button>
       </div>)}</div>
     </Card>}
 
@@ -1893,7 +1920,7 @@ const CrBuyers = ({setActive,setInitialThread}) => {
   return <div>{toast&&<Toast message={toast.msg} type={toast.type} onClose={()=>setToast(null)}/>}
     <PageHeader title="Покупатели (должники)" subtitle={`${BUYERS.length} покупателей в базе`}/>
     <div className="flex items-center gap-3 mb-5"><div className="flex gap-2">{[["all","Все",B.accent],["green","Одобрены",B.green],["yellow","Ожидает одобрение",B.yellow],["red","Отказ",B.red]].map(([v,l,c])=><button key={v} onClick={()=>setFilter(v)} className={`px-4 py-2 rounded-xl text-sm font-medium transition-colors ${filter===v?"text-white":"text-slate-500 bg-slate-50"}`} style={filter===v?{background:c}:undefined}>{l}</button>)}</div><div className="relative ml-auto"><Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"/><input value={buySearch} onChange={e=>setBuySearch(e.target.value)} placeholder="Поиск по названию или УНП..." className="pl-9 pr-3 py-2 w-72 text-sm rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-200"/></div></div>
-    <Card className="overflow-hidden overflow-x-auto"><table className="w-full text-sm"><thead><tr className="text-xs text-left border-b border-slate-100" style={{color:B.t3,background:"#FAFBFC"}}><th className="px-5 py-3 font-medium">Компания</th><th className="px-3 py-3 font-medium">УНП</th><th className="px-3 py-3 font-medium">Статус</th><th className="px-3 py-3 font-medium text-right">Лимит</th><th className="px-3 py-3 font-medium text-right">Доступно</th><th className="px-3 py-3 font-medium">Сделок</th></tr></thead>
+    <Card className="overflow-hidden overflow-x-auto"><table className="w-full text-sm"><thead><tr className="text-xs text-left border-b border-slate-100" style={{color:B.t3,background:"#FAFBFC"}}><th className="px-5 py-3 font-medium">Компания</th><th className="px-3 py-3 font-medium">УНП</th><th className="px-3 py-3 font-medium">Статус</th><th className="px-3 py-3 font-medium text-right">Лимит</th><th className="px-3 py-3 font-medium text-right"><InfoTooltip text="Сколько ещё можно уступить по этому покупателю в рамках лимита">Доступно</InfoTooltip></th><th className="px-3 py-3 font-medium">Сделок</th></tr></thead>
     <tbody>{filtered.map(b=><tr key={b.id} onClick={()=>setViewBuyer(b)} className="border-b border-slate-50 cursor-pointer transition-colors hover:bg-slate-50">
       <td className="px-5 py-3 font-medium" style={{color:B.t1}}>{b.name}</td>
       <td className="px-3 py-3" style={{fontFamily:"'JetBrains Mono',monospace",fontSize:12,color:B.t2}}>{b.unp}</td>
@@ -1905,7 +1932,7 @@ const CrBuyers = ({setActive,setInitialThread}) => {
   </div>;
 };
 
-const CrDeals = ({onSuccess,initialExpandDeal:initExp,onClearExpand,setActive,setInitialThread}) => {
+const CrDeals = ({onSuccess,initialExpandDeal:initExp,onClearExpand,setActive,setInitialThread,setInitialViewDoc,setReturnTo,setReturnDealId,setInitialExpandDeal,initialShowWizard,onClearWizard,returnTo:dealsReturnTo,onReturnNav}) => {
   const [filter,setFilter]=useState("all");
   const [dealSearch,setDealSearch]=useState("");
   const [datePreset,setDatePreset]=useState("all");
@@ -1916,6 +1943,8 @@ const CrDeals = ({onSuccess,initialExpandDeal:initExp,onClearExpand,setActive,se
   const [toast,setToast]=useState(null);
   const [expandedDeal,setExpandedDeal]=useState(null);
   const [viewDeal,setViewDeal]=useState(null);
+  useEffect(()=>{if(initExp){setViewDeal(initExp);onClearExpand?.()}},[initExp]);
+  useEffect(()=>{if(initialShowWizard){setShowNew(true);setWizStep(0);onClearWizard?.()}},[initialShowWizard]);
   const [buyerSearch,setBuyerSearch]=useState("");const [dropOpen,setDropOpen]=useState(false);
 
   const applyPreset=(p)=>{setDatePreset(p);const today=new Date("2026-03-22");if(p==="all"){setDateFrom("");setDateTo("");return;}const to=today.toISOString().split("T")[0];setDateTo(to);if(p==="30d"){const d=new Date(today);d.setDate(d.getDate()-30);setDateFrom(d.toISOString().split("T")[0])}else if(p==="90d"){const d=new Date(today);d.setDate(d.getDate()-90);setDateFrom(d.toISOString().split("T")[0])}else if(p==="year"){setDateFrom(`${today.getFullYear()}-01-01`)}};
@@ -1936,7 +1965,7 @@ const CrDeals = ({onSuccess,initialExpandDeal:initExp,onClearExpand,setActive,se
     {toast&&<Toast message={toast.msg} type={toast.type} onClose={()=>setToast(null)}/>}
     {(()=>{if(!viewDeal)return null;const d=CR_DEALS.find(dd=>dd.id===viewDeal);if(!d)return null;const buyer=BUYERS.find(b=>b.id===d.buyerId);const tl=[{label:"Создание",date:d.shipDate,done:true,desc:"Документы загружены"},{label:"ДС подписано",date:d.shipDate,done:d.ecpStatus==="signed",desc:d.supAg},{label:"Финансирование",date:"3 раб. дня",done:d.status!=="pending",desc:fmtByn(d.toReceive)+" на р/с"},{label:d.status==="overdue"?"Просрочка":"Оплата",date:d.dueDate,done:d.status==="paid",desc:d.status==="overdue"?"Просрочена!":d.status==="paid"?"Оплачена":`${d.daysLeft} дн.`}];
     return <div>
-      <button onClick={()=>setViewDeal(null)} className="flex items-center gap-1.5 text-sm font-medium mb-4 hover:underline" style={{color:B.accent}}><ArrowLeft size={16}/>Назад к реестру</button>
+      <button onClick={()=>{if(dealsReturnTo){onReturnNav?.()}else{setViewDeal(null)}}} className="flex items-center gap-1.5 text-sm font-medium mb-4 hover:underline" style={{color:B.accent}}><ArrowLeft size={16}/>{dealsReturnTo?"Назад":"Назад к реестру"}</button>
 
       <Card className="p-6 mb-5">
         <div className="flex items-start justify-between mb-4">
@@ -1947,18 +1976,18 @@ const CrDeals = ({onSuccess,initialExpandDeal:initExp,onClearExpand,setActive,se
       </Card>
 
       <div className="grid grid-cols-4 gap-4 mb-5">
-        <Card className="p-4"><div className="text-[10px] uppercase tracking-wide mb-1" style={{color:B.t3}}>Сумма уступки</div><div className="text-xl font-bold" style={{color:B.t1}}>{fmtByn(d.amount)}</div></Card>
-        <Card className="p-4"><div className="text-[10px] uppercase tracking-wide mb-1" style={{color:B.t3}}>Дисконт</div><div className="text-xl font-bold" style={{color:B.red}}>{fmtByn(d.discount)}</div></Card>
-        <Card className="p-4"><div className="text-[10px] uppercase tracking-wide mb-1" style={{color:B.green}}>К получению</div><div className="text-xl font-bold" style={{color:B.green}}>{fmtByn(d.toReceive)}</div></Card>
+        <Card className="p-4"><div className="text-[10px] uppercase tracking-wide mb-1" style={{color:B.t3}}><InfoTooltip text="Полная сумма денежного требования, уступленного банку">Сумма уступки</InfoTooltip></div><div className="text-xl font-bold" style={{color:B.t1}}>{fmtByn(d.amount)}</div></Card>
+        <Card className="p-4"><div className="text-[10px] uppercase tracking-wide mb-1" style={{color:B.t3}}><InfoTooltip text="Стоимость факторинга: сумма × (ставка/365) × дни. Удерживается банком при финансировании">Дисконт</InfoTooltip></div><div className="text-xl font-bold" style={{color:B.red}}>{fmtByn(d.discount)}</div></Card>
+        <Card className="p-4"><div className="text-[10px] uppercase tracking-wide mb-1" style={{color:B.green}}><InfoTooltip text="Сумма, которая зачисляется на ваш р/с. Равна: сумма уступки минус дисконт">К получению</InfoTooltip></div><div className="text-xl font-bold" style={{color:B.green}}>{fmtByn(d.toReceive)}</div></Card>
         <Card className="p-4"><div className="text-[10px] uppercase tracking-wide mb-1" style={{color:B.t3}}>Срок / Оплата</div><div className="text-xl font-bold" style={{color:d.daysLeft<14?B.yellow:B.t1}}>{d.term} дн.</div><div className="text-xs" style={{color:B.t3}}>до {d.dueDate} · {d.status==="paid"?"Оплачена":d.daysLeft+" дн."}</div></Card>
       </div>
 
       <Card className="p-5 mb-5">
         <h3 className="text-sm font-bold mb-3" style={{color:B.t1}}>Пакет документов</h3>
-        <div className="space-y-2">{[{icon:Gavel,name:d.supAg,type:"ДС"},{icon:FileSpreadsheet,name:`${d.docType==="ttn"?"ТТН":"Акт"}_${d.id.split("-")[2]}.pdf`,type:d.docType==="ttn"?"ТТН":"Акт"},{icon:Receipt,name:`ЭСЧФ_${d.id.split("-")[2]}.pdf`,type:"ЭСЧФ"},{icon:Send,name:`Увед._${d.id.split("-")[2]}`,type:"Увед."}].map((doc,i)=><div key={i} className="flex items-center gap-3 p-2.5 rounded-xl border border-slate-100 hover:bg-slate-50">
-          <doc.icon size={14} style={{color:B.accent}}/><span className="font-medium text-sm flex-1" style={{color:B.t1}}>{doc.name}</span><span className="px-2 py-0.5 rounded-lg bg-slate-100 text-xs" style={{color:B.t3}}>{doc.type}</span><span className="text-xs" style={{color:B.green}}>ЭЦП ✓</span>
-          <button onClick={()=>setToast({msg:`${doc.name} — просмотр`,type:"info"})} className="p-1.5 rounded-lg hover:bg-slate-100"><Eye size={14} className="text-slate-400"/></button>
-          <button onClick={()=>setToast({msg:`${doc.name} скачан`,type:"info"})} className="p-1.5 rounded-lg hover:bg-slate-100"><Download size={14} className="text-slate-400"/></button>
+        <div className="space-y-2">{[{icon:Gavel,name:d.supAg,type:"ДС"},{icon:FileSpreadsheet,name:`${d.docType==="ttn"?"ТТН":"Акт"}_${d.id.split("-")[2]}.pdf`,type:d.docType==="ttn"?"ТТН":"Акт"},{icon:Receipt,name:`ЭСЧФ_${d.id.split("-")[2]}.pdf`,type:"ЭСЧФ"},{icon:Send,name:`Увед._${d.id.split("-")[2]}`,type:"Увед."}].map((doc,i)=><div key={i} className="flex items-center gap-3 p-2.5 rounded-xl border border-slate-100 hover:shadow-sm hover:border-blue-200 cursor-pointer transition-all" onClick={()=>{setInitialViewDoc?.(doc.name);setReturnDealId?.(d.id);setReturnTo("cr-deals");setActive("cr-documents")}}>
+          <doc.icon size={14} style={{color:B.accent}}/><span className="font-medium text-sm flex-1 hover:underline" style={{color:B.accent}}>{doc.name}</span><span className="px-2 py-0.5 rounded-lg bg-slate-100 text-xs" style={{color:B.t3}}>{doc.type}</span><span className="text-xs" style={{color:B.green}}>ЭЦП ✓</span>
+          <button onClick={e=>{e.stopPropagation();setToast({msg:`${doc.name} скачан`,type:"info"})}} className="p-1.5 rounded-lg hover:bg-slate-100"><Download size={14} className="text-slate-400"/></button>
+          <ChevronRight size={14} className="text-slate-300"/>
         </div>)}</div>
       </Card>
 
@@ -2026,10 +2055,10 @@ const CrDeals = ({onSuccess,initialExpandDeal:initExp,onClearExpand,setActive,se
             <input value={selBuyer&&!dropOpen?"":buyerSearch} onChange={e=>{setBuyerSearch(e.target.value);setDropOpen(true);if(selBuyer)setNewDeal({...newDeal,buyerId:""})}} onFocus={()=>setDropOpen(true)} placeholder={selBuyer?selBuyer.name:"Название или УНП..."} className="flex-1 text-sm outline-none bg-transparent" />
             {selBuyer&&!dropOpen&&<button onClick={e=>{e.stopPropagation();setNewDeal({...newDeal,buyerId:""});setBuyerSearch("")}} className="p-0.5 rounded hover:bg-slate-100"><X size={14} className="text-slate-400"/></button>}
           </div>
-          {dropOpen&&<div className="absolute z-20 top-full left-0 right-0 mt-1 bg-white rounded-xl border border-slate-200 shadow-xl max-h-[220px] overflow-y-auto">{filteredBuyers.length>0?filteredBuyers.map(b=><button key={b.id} onClick={()=>{setNewDeal({...newDeal,buyerId:String(b.id)});setBuyerSearch("");setDropOpen(false)}} className="w-full flex items-center justify-between px-4 py-2.5 hover:bg-slate-50 transition-colors text-left border-b border-slate-50 last:border-0"><div className="min-w-0"><div className="text-sm font-medium" style={{color:B.t1}}>{b.name}</div><div className="text-xs" style={{color:B.t3,fontFamily:"'JetBrains Mono',monospace"}}>УНП {b.unp}</div></div><div className="text-right shrink-0 ml-3"><div className="text-xs" style={{color:B.green}}>Доступно</div><div className="text-sm font-bold" style={{color:B.accent}}>{fmtByn(b.available)}</div></div></button>):<div className="px-4 py-6 text-center text-sm" style={{color:B.t3}}>Покупатель не найден</div>}</div>}
+          {dropOpen&&<div className="absolute z-20 top-full left-0 right-0 mt-1 bg-white rounded-xl border border-slate-200 shadow-xl max-h-[220px] overflow-y-auto">{filteredBuyers.length>0?filteredBuyers.map(b=><button key={b.id} onClick={()=>{setNewDeal({...newDeal,buyerId:String(b.id)});setBuyerSearch("");setDropOpen(false)}} className="w-full flex items-center justify-between px-4 py-2.5 hover:bg-slate-50 transition-colors text-left border-b border-slate-50 last:border-0"><div className="min-w-0"><div className="text-sm font-medium" style={{color:B.t1}}>{b.name}</div><div className="text-xs" style={{color:B.t3,fontFamily:"'JetBrains Mono',monospace"}}>УНП {b.unp}</div></div><div className="text-right shrink-0 ml-3"><div className="text-xs" style={{color:B.green}}>Доступно: {fmtByn(b.available)}</div><div className="text-xs" style={{color:B.t3}}>Лимит: {fmtByn(b.limit)}</div></div></button>):<div className="px-4 py-6 text-center text-sm" style={{color:B.t3}}>Покупатель не найден</div>}</div>}
           {dropOpen&&<div className="fixed inset-0 z-10" onClick={()=>setDropOpen(false)}/>}
           </div>
-          {selBuyer&&<div className="mt-3 rounded-xl p-3 flex items-center gap-3" style={{background:B.greenL}}><CheckCircle size={16} style={{color:B.green}}/><div className="flex-1"><div className="text-sm font-medium" style={{color:B.green}}>{selBuyer.name}</div><div className="text-xs" style={{color:B.t2}}>Лимит: {fmtByn(selBuyer.limit)} · Доступно: {fmtByn(selBuyer.available)} · Ставка: {calcPeriodRate(selBuyer.rate,60)}%/60дн</div></div></div>}
+          {selBuyer&&<div className="mt-3 rounded-xl p-3 flex items-center gap-3" style={{background:B.greenL}}><CheckCircle size={16} style={{color:B.green}}/><div className="flex-1"><div className="text-sm font-medium" style={{color:B.green}}>{selBuyer.name}</div><div className="text-xs" style={{color:B.t2}}>Лимит: {fmtByn(selBuyer.limit)} · Доступно: {fmtByn(selBuyer.available)}</div></div></div>}
           <div className="mt-4 flex justify-end"><Btn onClick={()=>setWizStep(1)} disabled={!newDeal.buyerId}>Далее</Btn></div>
         </div>}
 
@@ -2457,7 +2486,7 @@ const CompanyProfile = ({ctx,isActualization,onComplete,onDirtyChange}) => {
 };
 
 // ═══ CREDITOR: OVERDUE INFO ══════════════════════════════
-const CrOverdue = ({setActive}) => {
+const CrOverdue = ({setActive,setInitialExpandDeal}) => {
   const overdue=CR_DEALS.filter(d=>d.status==="overdue");
   if(overdue.length===0) return <div><PageHeader title="Просрочки" subtitle="Мониторинг просроченных уступок"/>
     <Card className="p-16 text-center"><div className="w-16 h-16 rounded-full mx-auto mb-4 flex items-center justify-center" style={{background:B.greenL}}><CheckCircle size={32} style={{color:B.green}}/></div><h3 className="text-xl font-bold mb-2" style={{color:B.green}}>Все уступки в срок ✓</h3><p className="text-sm" style={{color:B.t2}}>У вас нет просроченных обязательств. Всё идёт отлично!</p></Card></div>;
@@ -2490,6 +2519,12 @@ export default function App() {
   const [active,setActive]=useState("cr-dashboard");
   const [searchOpen,setSearchOpen]=useState(false);
   const [initialExpandDeal,setInitialExpandDeal]=useState(null);
+  const [initialShowWizard,setInitialShowWizard]=useState(false);
+  const [returnDealId,setReturnDealId]=useState(null);
+  const [returnSupplyId,setReturnSupplyId]=useState(null);
+  const [initialViewSupply,setInitialViewSupply]=useState(null);
+  const [initialViewDoc,setInitialViewDoc]=useState(null);
+  const [returnTo,setReturnTo]=useState(null);
   const [initialThread,setInitialThread]=useState(null);
   const [notifOpen,setNotifOpen]=useState(false);
   const [loading,setLoading]=useState(true);
@@ -2520,26 +2555,26 @@ export default function App() {
 
   const pages = {
     "cr-tasks":<CrTasks setActive={go} setInitialThread={setInitialThread}/>,
-    "cr-dashboard":<CrDashboard setActive={go} setInitialThread={setInitialThread}/>,
+    "cr-dashboard":<CrDashboard setActive={go} setInitialThread={setInitialThread} setInitialExpandDeal={setInitialExpandDeal}/>,
     "cr-scoring":<CrScoring setActive={go}/>,
     "cr-mass":<CrMassScoring/>,
-    "cr-buyers":<CrBuyers setActive={setActive} setInitialThread={setInitialThread}/>,
+    "cr-buyers":<CrBuyers setActive={setActive} setInitialThread={setInitialThread} setInitialExpandDeal={setInitialExpandDeal} setInitialShowWizard={setInitialShowWizard} setReturnTo={setReturnTo}/>,
     "cr-partners":<PartnersPage ctx="creditor" setActive={go}/>,
-    "cr-deals":<CrDeals initialExpandDeal={initialExpandDeal} onClearExpand={()=>setInitialExpandDeal(null)} onSuccess={triggerConfetti} setActive={setActive} setInitialThread={setInitialThread}/>,
-    "cr-overdue":<CrOverdue setActive={setActive}/>,
-    "cr-documents":<CrDocuments setActive={setActive} setInitialThread={setInitialThread}/>,
+    "cr-deals":<CrDeals setInitialExpandDeal={setInitialExpandDeal} setReturnDealId={setReturnDealId} setInitialViewDoc={setInitialViewDoc} setReturnTo={setReturnTo} initialShowWizard={initialShowWizard} onClearWizard={()=>setInitialShowWizard(false)} initialExpandDeal={initialExpandDeal} returnTo={returnTo} onReturnNav={()=>{if(returnTo){setActive(returnTo);setReturnTo(null)}}} onClearExpand={()=>setInitialExpandDeal(null)} onSuccess={triggerConfetti} setActive={setActive} setInitialThread={setInitialThread}/>,
+    "cr-overdue":<CrOverdue setActive={setActive} setInitialExpandDeal={setInitialExpandDeal}/>,
+    "cr-documents":<CrDocuments setActive={setActive} setInitialThread={setInitialThread} initialViewDoc={initialViewDoc} onClearViewDoc={()=>setInitialViewDoc(null)} returnTo={returnTo} onReturn={()=>{if(returnTo){if(returnDealId){setInitialExpandDeal(returnDealId);setReturnDealId(null)}setActive(returnTo);setReturnTo(null)}else setViewDoc(null)}}/>,
     "cr-finance":<CrFinance setActive={setActive}/>,
     "cr-profile":<CompanyProfile ctx="creditor" isActualization={false} onDirtyChange={setProfileDirty}/>,
     "cr-messages":<MessagesPage ctx="creditor" setActive={setActive} initialThread={initialThread} onNavigateDeal={id=>{setInitialExpandDeal(id)}}/>,
     "cr-support":<SupportPage ctx="creditor"/>,
     "cr-settings":<CrSettings dark={dark} setDark={setDark}/>,
     "db-tasks":<DbTasks setActive={go} setInitialThread={setInitialThread}/>,
-    "db-dashboard":<DbDashboard setActive={go} setInitialThread={setInitialThread}/>,
-    "db-supplies":<DbSupplies setActive={setActive} setInitialThread={setInitialThread}/>,
-    "db-payments":<DbPayments setActive={setActive} setInitialThread={setInitialThread}/>,
+    "db-dashboard":<DbDashboard setActive={go} setInitialThread={setInitialThread} setInitialViewSupply={setInitialViewSupply}/>,
+    "db-supplies":<DbSupplies setActive={setActive} setInitialThread={setInitialThread} setInitialViewDoc={setInitialViewDoc} setReturnTo={setReturnTo} setReturnSupplyId={setReturnSupplyId} setInitialViewSupply={setInitialViewSupply} initialViewSupply={initialViewSupply} onClearViewSupply={()=>setInitialViewSupply(null)}/>,
+    "db-payments":<DbPayments setActive={setActive} setInitialThread={setInitialThread} setInitialViewSupply={setInitialViewSupply}/>,
     "db-limit":<DbLimit/>,
     "db-partners":<PartnersPage ctx="debtor" setActive={go}/>,
-    "db-documents":<DbDocuments setActive={setActive} setInitialThread={setInitialThread}/>,
+    "db-documents":<DbDocuments setActive={setActive} setInitialThread={setInitialThread} initialViewDoc={initialViewDoc} onClearViewDoc={()=>setInitialViewDoc(null)} returnTo={returnTo} onReturn={()=>{if(returnTo){if(returnSupplyId){setInitialViewSupply(returnSupplyId);setReturnSupplyId(null)}setActive(returnTo);setReturnTo(null)}else setViewDoc(null)}}/>,
     "db-profile":<CompanyProfile ctx="debtor" isActualization={false} onDirtyChange={setProfileDirty}/>,
     "db-messages":<MessagesPage ctx="debtor" setActive={setActive} initialThread={initialThread} onNavigateDeal={id=>{setInitialExpandDeal(id)}}/>,
     "db-support":<SupportPage ctx="debtor"/>,
