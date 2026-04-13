@@ -356,7 +356,7 @@ const CrTasks = ({setActive,setInitialThread,setInitialViewDoc}) => {
   </div>;
 };
 
-const CrDashboard = ({setActive,setInitialThread,setInitialExpandDeal,setReturnTo}) => {
+const CrDashboard = ({setActive,setInitialThread,setInitialExpandDeal,setReturnTo,setInitialShowWizard}) => {
   const activeDeals = CR_DEALS.filter(d=>d.status==="active"||d.status==="overdue");
   const activeSum = activeDeals.reduce((s,d)=>s+d.amount,0);
   const totalReceived = CR_DEALS.filter(d=>d.status!=="overdue").reduce((s,d)=>s+d.toReceive,0);
@@ -595,7 +595,7 @@ const CrDashboard = ({setActive,setInitialThread,setInitialExpandDeal,setReturnT
       </div>
       <div className="h-3 rounded-full bg-slate-100 overflow-hidden mb-2"><div className="h-full rounded-full transition-all" style={{width:`${Math.round(BUYERS.filter(b=>b.status==="green").reduce((s,b)=>s+b.used,0)/BUYERS.filter(b=>b.status==="green").reduce((s,b)=>s+b.limit,0)*100)}%`,background:`linear-gradient(90deg, ${B.accent}, ${B.green})`}}/></div>
       <div className="text-sm mb-4" style={{color:B.t2}}>Использовано <strong style={{color:B.t1}}>{Math.round(BUYERS.filter(b=>b.status==="green").reduce((s,b)=>s+b.used,0)/BUYERS.filter(b=>b.status==="green").reduce((s,b)=>s+b.limit,0)*100)}%</strong> — {fmtByn(BUYERS.filter(b=>b.status==="green").reduce((s,b)=>s+b.used,0))} из {fmtByn(BUYERS.filter(b=>b.status==="green").reduce((s,b)=>s+b.limit,0))}</div>
-      <Btn className="w-full py-3 text-base" icon={Plus} onClick={()=>setActive("cr-deals")}><InfoTooltip text="Уступите банку денежное требование к покупателю и получите финансирование за 3 рабочих дня">Создать новую уступку</InfoTooltip></Btn>
+      <Btn className="w-full py-3 text-base" icon={Plus} onClick={()=>{setInitialShowWizard?.(true);setActive("cr-deals")}}><InfoTooltip text="Уступите банку денежное требование к покупателю и получите финансирование за 3 рабочих дня">Создать новую уступку</InfoTooltip></Btn>
     </Card>
 
     {/* Active deals — waiting for money */}
@@ -2559,7 +2559,7 @@ export default function App() {
 
   const pages = {
     "cr-tasks":<CrTasks setActive={go} setInitialThread={setInitialThread} setInitialViewDoc={setInitialViewDoc}/>,
-    "cr-dashboard":<CrDashboard setActive={go} setInitialThread={setInitialThread} setInitialExpandDeal={setInitialExpandDeal} setReturnTo={setReturnTo}/>,
+    "cr-dashboard":<CrDashboard setActive={go} setInitialThread={setInitialThread} setInitialExpandDeal={setInitialExpandDeal} setReturnTo={setReturnTo} setInitialShowWizard={setInitialShowWizard}/>,
     "cr-scoring":<CrScoring setActive={go}/>,
     "cr-mass":<CrMassScoring/>,
     "cr-buyers":<CrBuyers setActive={setActive} setInitialThread={setInitialThread} setInitialExpandDeal={setInitialExpandDeal} setInitialShowWizard={setInitialShowWizard} setReturnTo={setReturnTo}/>,
