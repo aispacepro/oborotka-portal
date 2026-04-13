@@ -1487,7 +1487,7 @@ const CrDocuments = ({setActive,setInitialThread,initialViewDoc:initDoc,onClearV
   const [statusFilter,setStatusFilter]=useState("all");
   const [groupFilter,setGroupFilter]=useState("all");
   const [emailInput,setEmailInput]=useState("");const [showEmail,setShowEmail]=useState(false);
-  useEffect(()=>{if(initDoc&&initDoc.length>0){const doc=allDocs.find(d=>d.name.includes(initDoc)||d.id===initDoc);if(doc)setViewDoc(doc);onClearViewDoc?.()}},[initDoc]);
+  useEffect(()=>{if(initDoc&&initDoc.length>0){const q=initDoc.replace(/\s+/g,"");const doc=allDocs.find(d=>d.name.replace(/\s+/g,"").includes(q)||d.id===initDoc);if(doc)setViewDoc(doc);onClearViewDoc?.()}},[initDoc]);
   const [showUpload,setShowUpload]=useState(false);const [uploadType,setUploadType]=useState("");const [uploadDeal,setUploadDeal]=useState("");const [uploadFile,setUploadFile]=useState(null);const [uploadDesc,setUploadDesc]=useState("");
 
   const handleSign=(id)=>{setSigningDoc(id);setTimeout(()=>{setSignedDocs(prev=>{const n=new Set(prev);n.add(id);return n});setSigningDoc(null);setToast({msg:"Документ подписан ЭЦП",type:"success"})},1500)};
@@ -1723,7 +1723,7 @@ const DbDocuments = ({setActive,setInitialThread,initialViewDoc:initDoc,onClearV
   const [signedDocs,setSignedDocs]=useState(new Set());
   const [selectedDocs,setSelectedDocs]=useState(new Set());
   const [groupByDeal,setGroupByDeal]=useState(false);
-  useEffect(()=>{if(initDoc&&initDoc.length>0){const doc=allDocs.find(d=>d.name.includes(initDoc)||d.id===initDoc);if(doc)setViewDoc(doc);onClearViewDoc?.()}},[initDoc]);
+  useEffect(()=>{if(initDoc&&initDoc.length>0){const q=initDoc.replace(/\s+/g,"");const doc=allDocs.find(d=>d.name.replace(/\s+/g,"").includes(q)||d.id===initDoc);if(doc)setViewDoc(doc);onClearViewDoc?.()}},[initDoc]);
   const copyReqs=()=>{copyText("Получатель: ЗАО «Нео Банк Азия»\nР/с: BY20 NEOB 3819 0000 0001 2345\nБИК: NEOBBY2X");setToast({msg:"Реквизиты скопированы",type:"success"})};
 
   const handleSign=(id)=>{setSigningDoc(id);setTimeout(()=>{setSignedDocs(p=>{const n=new Set(p);n.add(id);return n});setSigningDoc(null);setToast({msg:"Документ подтверждён ЭЦП",type:"success"})},1500)};
