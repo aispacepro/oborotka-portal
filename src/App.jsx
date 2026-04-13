@@ -290,7 +290,7 @@ const TopHeader = ({ctx,active,onSearchOpen,onNotifOpen,unreadCount}) => {
 };
 
 // ═══ CREDITOR: TASKS ═══
-const CrTasks = ({setActive,setInitialThread}) => {
+const CrTasks = ({setActive,setInitialThread,setInitialViewDoc}) => {
   const [toast,setToast]=useState(null);
   const overdue=CR_DEALS.filter(d=>d.status==="overdue");
   const pendingDocs=CR_DEALS.filter(d=>d.ecpStatus==="pending").length||2;
@@ -336,7 +336,7 @@ const CrTasks = ({setActive,setInitialThread}) => {
       {/* Inline ECP signing */}
       {t.type==="ecp"&&expandedTask===t.id&&t.status!=="done"&&<div className="px-4 pb-4 border-t border-slate-100 pt-3 flex items-center gap-3">
         <Btn icon={Pen} onClick={()=>{setCompletedTasks(p=>{const n=new Set(p);n.add(t.id);return n});setExpandedTask(null);setToast({msg:`${t.title} — подписано ЭЦП`,type:"success"})}} style={{background:B.accent}}>Подписать ЭЦП</Btn>
-        <Btn variant="secondary" icon={Eye} onClick={()=>setActive("cr-documents")}>Просмотреть документ</Btn>
+        <Btn variant="secondary" icon={Eye} onClick={()=>{const docName=t.title.replace("Подписать ","");setInitialViewDoc?.(docName);setActive("cr-documents")}}>Просмотреть документ</Btn>
       </div>}
       {/* Inline message reply */}
       {t.type==="message"&&expandedTask===t.id&&t.status!=="done"&&<div className="px-4 pb-4 border-t border-slate-100 pt-3">
@@ -356,7 +356,7 @@ const CrTasks = ({setActive,setInitialThread}) => {
   </div>;
 };
 
-const CrDashboard = ({setActive,setInitialThread,setInitialExpandDeal}) => {
+const CrDashboard = ({setActive,setInitialThread,setInitialExpandDeal,setReturnTo}) => {
   const activeDeals = CR_DEALS.filter(d=>d.status==="active"||d.status==="overdue");
   const activeSum = activeDeals.reduce((s,d)=>s+d.amount,0);
   const totalReceived = CR_DEALS.filter(d=>d.status!=="overdue").reduce((s,d)=>s+d.toReceive,0);
@@ -602,7 +602,7 @@ const CrDashboard = ({setActive,setInitialThread,setInitialExpandDeal}) => {
     {(()=>{const pending=CR_DEALS.filter(d=>d.status==="active"||d.status==="pending");if(!pending.length)return null;return <Card className="p-5 mb-5 animate-fade-up">
       <div className="flex items-center justify-between mb-3"><div className="flex items-center gap-2"><TrendingUp size={16} style={{color:B.accent}}/><h3 className="text-sm font-bold" style={{color:B.t1}}><InfoTooltip text="Уступки, по которым ожидается оплата от покупателя. Финансирование уже получено">Мои активные уступки</InfoTooltip></h3><span className="text-xs px-2 py-0.5 rounded-full" style={{background:B.accentL,color:B.accent}}>{pending.length}</span></div><Btn size="sm" variant="secondary" onClick={()=>setActive("cr-deals")}>Все уступки →</Btn></div>
       <div className="text-xs mb-3" style={{color:B.t3}}>Уступки, по которым вы ожидаете финансирование или оплату от покупателя</div>
-      <div className="space-y-2">{pending.sort((a,b)=>a.daysLeft-b.daysLeft).map(d=>{const buyer=BUYERS.find(b=>b.id===d.buyerId);return <div key={d.id} className="flex items-center gap-3 p-3 rounded-xl border border-slate-100 hover:border-slate-200 hover:shadow-sm transition-all cursor-pointer" onClick={()=>{setInitialExpandDeal?.(d.id);setActive("cr-deals")}}>
+      <div className="space-y-2">{pending.sort((a,b)=>a.daysLeft-b.daysLeft).map(d=>{const buyer=BUYERS.find(b=>b.id===d.buyerId);return <div key={d.id} className="flex items-center gap-3 p-3 rounded-xl border border-slate-100 hover:border-slate-200 hover:shadow-sm transition-all cursor-pointer" onClick={()=>{setInitialExpandDeal?.(d.id);setReturnTo?.("cr-dashboard");setActive("cr-deals")}}>
         <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={{background:d.daysLeft<14?B.yellowL:B.accentL}}>{d.ecpStatus==="pending"?<Pen size={14} style={{color:B.yellow}}/>:<CheckCircle size={14} style={{color:B.accent}}/>}</div>
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2"><span className="text-xs font-bold" style={{color:B.accent,fontFamily:"'JetBrains Mono',monospace"}}>{d.id}</span><span className="text-xs font-medium" style={{color:B.t1}}>{buyer?.name}</span></div>
@@ -617,7 +617,7 @@ const CrDashboard = ({setActive,setInitialThread,setInitialExpandDeal}) => {
 };
 
 
-const DbTasks = ({setActive,setInitialThread}) => {
+const DbTasks = ({setActive,setInitialThread,setInitialViewDoc}) => {
   const [toast,setToast]=useState(null);
   const [expandedTask,setExpandedTask]=useState(null);
   const [completedTasks,setCompletedTasks]=useState(new Set(["done-1","done-2"]));
@@ -644,14 +644,14 @@ const DbTasks = ({setActive,setInitialThread}) => {
         <div className="flex-1 min-w-0"><div className="flex items-center gap-2"><span className={`text-sm font-semibold ${t.status==="done"?"line-through":""}`} style={{color:t.status==="done"?B.t3:B.t1}}>{t.title}</span>{t.priority==="high"&&t.status!=="done"&&<span className="px-1.5 py-0.5 rounded text-[9px] font-bold text-white" style={{background:B.red}}>Срочно</span>}</div><div className="text-xs mt-0.5" style={{color:B.t3}}>{t.desc}</div></div>
         {t.status==="done"?<span className="inline-flex items-center gap-1 text-xs" style={{color:B.green}}><CheckCircle size={14}/>Выполнено</span>:t.type==="ecp"?<span className="text-xs font-medium px-3 py-1.5 rounded-lg" style={{background:t.color+"15",color:t.color}}>{expandedTask===t.id?"Свернуть":"Подписать ↓"}</span>:t.type==="message"?<span className="text-xs font-medium px-3 py-1.5 rounded-lg" style={{background:t.color+"15",color:t.color}}>{expandedTask===t.id?"Свернуть":"Ответить ↓"}</span>:t.type==="actualize"?<span className="text-xs font-medium px-3 py-1.5 rounded-lg" style={{background:t.color+"15",color:t.color}}>{expandedTask===t.id?"Свернуть":"Проверить ↓"}</span>:<span className="text-xs font-medium px-3 py-1.5 rounded-lg" style={{background:t.color+"15",color:t.color}}>Выполнить →</span>}
       </div>
-      {t.type==="ecp"&&expandedTask===t.id&&t.status!=="done"&&<div className="px-4 pb-4 border-t border-slate-100 pt-3 flex items-center gap-3"><Btn icon={Pen} onClick={()=>{setCompletedTasks(p=>{const n=new Set(p);n.add(t.id);return n});setExpandedTask(null);setToast({msg:`${t.title} — подтверждено ЭЦП`,type:"success"})}} style={{background:B.purple}}>Подтвердить ЭЦП</Btn><Btn variant="secondary" icon={Eye} onClick={()=>setActive("db-documents")}>Просмотреть</Btn></div>}
+      {t.type==="ecp"&&expandedTask===t.id&&t.status!=="done"&&<div className="px-4 pb-4 border-t border-slate-100 pt-3 flex items-center gap-3"><Btn icon={Pen} onClick={()=>{setCompletedTasks(p=>{const n=new Set(p);n.add(t.id);return n});setExpandedTask(null);setToast({msg:`${t.title} — подтверждено ЭЦП`,type:"success"})}} style={{background:B.purple}}>Подтвердить ЭЦП</Btn><Btn variant="secondary" icon={Eye} onClick={()=>{const dealNum=t.id.replace("confirm-","").split("-").pop();setInitialViewDoc?.("Уведомление_"+dealNum);setActive("db-documents")}}>Просмотреть</Btn></div>}
       {t.type==="message"&&expandedTask===t.id&&t.status!=="done"&&<div className="px-4 pb-4 border-t border-slate-100 pt-3"><div className="rounded-xl p-3 mb-3 bg-slate-50"><div className="text-[10px] font-medium mb-1" style={{color:B.t3}}>Последнее сообщение:</div><div className="text-xs" style={{color:B.t1}}>«Уточните дату отгрузки по накладной.»</div></div><div className="flex gap-2 mb-2"><input value={taskReply} onChange={e=>setTaskReply(e.target.value)} placeholder="Ваш ответ..." className="flex-1 px-3 py-2 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-purple-200"/><Btn icon={Send} disabled={!taskReply.trim()} onClick={()=>{setCompletedTasks(p=>{const n=new Set(p);n.add(t.id);return n});setExpandedTask(null);setTaskReply("");setToast({msg:"Ответ отправлен",type:"success"})}} style={{background:B.purple}}>Отправить</Btn></div><button onClick={()=>{setInitialThread?.(t.dealId);setActive(t.action)}} className="text-xs font-medium hover:underline" style={{color:B.purple}}>Открыть полный чат →</button></div>}
       {t.type==="actualize"&&expandedTask===t.id&&t.status!=="done"&&<div className="px-4 pb-4 border-t border-slate-100 pt-3"><div className="flex gap-2"><Btn icon={CheckCircle} onClick={()=>{setCompletedTasks(p=>{const n=new Set(p);n.add(t.id);return n});setExpandedTask(null);setToast({msg:"Данные подтверждены",type:"success"})}} style={{background:B.green}}>Данные актуальны</Btn><Btn variant="secondary" icon={Pen} onClick={()=>setActive("db-profile")}>Перейти в анкету</Btn></div></div>}
     </Card>)}</div>
   </div>;
 };
 
-const DbDashboard = ({setActive,setInitialThread,setInitialViewSupply}) => {
+const DbDashboard = ({setActive,setInitialThread,setInitialViewSupply,setReturnTo}) => {
   const pendingConfirm=DB_DEALS.filter(d=>!d.confirmed);
   const activeSupplies=DB_DEALS.filter(d=>d.status==="active"||d.status==="pending");
   const totalLimit=SUPPLIERS.reduce((s,sup)=>s+sup.limit,0);
@@ -689,7 +689,7 @@ const DbDashboard = ({setActive,setInitialThread,setInitialViewSupply}) => {
     {/* Active supplies */}
     {activeSupplies.length>0&&<Card className="p-5 mb-5 animate-fade-up">
       <div className="flex items-center justify-between mb-3"><div className="flex items-center gap-2"><TrendingUp size={16} style={{color:B.purple}}/><h3 className="text-sm font-bold" style={{color:B.t1}}><InfoTooltip text="Поставки, по которым ваш поставщик уступил право требования банку. Оплата идёт на счёт банка, не поставщика">Мои активные поставки</InfoTooltip></h3><span className="text-xs px-2 py-0.5 rounded-full" style={{background:B.purpleL,color:B.purple}}>{activeSupplies.length}</span></div><Btn size="sm" variant="secondary" onClick={()=>setActive("db-supplies")}>Все поставки →</Btn></div>
-      <div className="space-y-2">{activeSupplies.sort((a,b)=>a.daysLeft-b.daysLeft).map(d=>{const sup=SUPPLIERS.find(s=>s.id===d.supplierId);return <div key={d.id} className="flex items-center gap-3 p-3 rounded-xl border border-slate-100 hover:shadow-sm transition-all cursor-pointer" onClick={()=>{setInitialViewSupply?.(d.id);setActive("db-supplies")}}>
+      <div className="space-y-2">{activeSupplies.sort((a,b)=>a.daysLeft-b.daysLeft).map(d=>{const sup=SUPPLIERS.find(s=>s.id===d.supplierId);return <div key={d.id} className="flex items-center gap-3 p-3 rounded-xl border border-slate-100 hover:shadow-sm transition-all cursor-pointer" onClick={()=>{setInitialViewSupply?.(d.id);setReturnTo?.("db-dashboard");setActive("db-supplies")}}>
         <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={{background:d.confirmed?B.greenL:B.yellowL}}>{d.confirmed?<CheckCircle size={14} style={{color:B.green}}/>:<Pen size={14} style={{color:B.yellow}}/>}</div>
         <div className="flex-1 min-w-0"><div className="flex items-center gap-2"><span className="text-xs font-bold" style={{color:B.purple,fontFamily:"'JetBrains Mono',monospace"}}>{d.id}</span><span className="text-xs" style={{color:B.t1}}>{sup?.name}</span></div><div className="text-[10px] mt-0.5" style={{color:B.t3}}>{d.confirmed?"Подтверждена":"Ожидает подтверждения"} · Оплата через {d.daysLeft} дн.</div></div>
         <div className="text-right shrink-0"><div className="text-sm font-bold" style={{color:B.t1}}>{fmtByn(d.amount)}</div><div className="text-[10px]" style={{color:d.daysLeft<14?B.yellow:B.green}}>до {d.dueDate}</div></div>
@@ -699,7 +699,7 @@ const DbDashboard = ({setActive,setInitialThread,setInitialViewSupply}) => {
   </div>;
 };
 
-const DbSupplies = ({setActive,setInitialThread,setInitialViewDoc,setReturnTo,setReturnSupplyId,setInitialViewSupply,initialViewSupply,onClearViewSupply}) => {
+const DbSupplies = ({setActive,setInitialThread,setInitialViewDoc,setReturnTo,setReturnSupplyId,setInitialViewSupply,initialViewSupply,onClearViewSupply,returnTo:dealsReturnTo,onReturnNav}) => {
   const [toast,setToast]=useState(null);
   const [filter,setFilter]=useState("all");
   const [search,setSearch]=useState("");
@@ -727,7 +727,7 @@ const DbSupplies = ({setActive,setInitialThread,setInitialViewDoc,setReturnTo,se
   if(viewSupply){const d=viewSupply;const sup=SUPPLIERS.find(s=>s.id===d.supplierId);const isConf=confirmed.has(d.id);const isSigning=signing===d.id;
     const tl=[{label:"Уступка создана",date:d.notifyDate,done:true,desc:"Поставщик уступил банку"},{label:"Подтверждение",date:isConf?"ЭЦП":"—",done:isConf,desc:isConf?"Подтверждено вами":rejected.has(d.id)?"Отклонена":"Ожидает вашего ЭЦП"},{label:"Оплата банку",date:d.dueDate,done:d.status==="paid",desc:d.status==="paid"?"Оплачена":`${d.daysLeft} дн. осталось`}];
   return <div>{toast&&<Toast message={toast.msg} type={toast.type} onClose={()=>setToast(null)}/>}
-    <button onClick={()=>setViewSupply(null)} className="flex items-center gap-1.5 text-sm font-medium mb-4 hover:underline" style={{color:B.purple}}><ArrowLeft size={16}/>Назад к поставкам</button>
+    <button onClick={()=>{if(dealsReturnTo){onReturnNav?.()}else{setViewSupply(null)}}} className="flex items-center gap-1.5 text-sm font-medium mb-4 hover:underline" style={{color:B.purple}}><ArrowLeft size={16}/>{dealsReturnTo?"Назад":"Назад к поставкам"}</button>
 
     <Card className="p-6 mb-5">
       <div className="flex items-start justify-between mb-4">
@@ -805,7 +805,7 @@ const DbSupplies = ({setActive,setInitialThread,setInitialViewDoc,setReturnTo,se
 };
 
 
-const DbPayments = ({setActive,setInitialThread,setInitialViewSupply}) => {
+const DbPayments = ({setActive,setInitialThread,setInitialViewSupply,setReturnTo}) => {
   const [toast,setToast]=useState(null);
   const [showReqs,setShowReqs]=useState(null);
   const [paySearch,setPaySearch]=useState("");
@@ -829,7 +829,7 @@ const DbPayments = ({setActive,setInitialThread,setInitialViewSupply}) => {
     <div className="flex items-center gap-3 mb-4"><div className="relative"><Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"/><input value={paySearch} onChange={e=>setPaySearch(e.target.value)} placeholder="Поиск по номеру или поставщику..." className="pl-9 pr-3 py-2 w-64 text-sm rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-purple-200"/></div></div>
 
     <Card className="overflow-hidden">
-      {filtered.map(p=><div key={p.id} className="flex items-center gap-5 px-6 py-5 border-b border-slate-50 last:border-0 cursor-pointer hover:bg-slate-50 transition-colors" onClick={()=>{setInitialViewSupply?.(p.dealId);setActive("db-supplies")}}>
+      {filtered.map(p=><div key={p.id} className="flex items-center gap-5 px-6 py-5 border-b border-slate-50 last:border-0 cursor-pointer hover:bg-slate-50 transition-colors" onClick={()=>{setInitialViewSupply?.(p.dealId);setReturnTo?.("db-payments");setActive("db-supplies")}}>
         <div className="w-12 h-12 rounded-xl flex flex-col items-center justify-center" style={{background:p.daysLeft<14?B.yellowL:B.purpleL}}>
           <div className="text-[10px] font-medium" style={{color:p.daysLeft<14?B.yellow:B.purple}}>{p.dueDate.split("-")[2]}</div>
           <div className="text-[10px]" style={{color:B.t3}}>{["","янв","фев","мар","апр","май","июн"][parseInt(p.dueDate.split("-")[1])]}</div>
@@ -1654,7 +1654,7 @@ const CrDocuments = ({setActive,setInitialThread,initialViewDoc:initDoc,onClearV
 };
 
 // ═══ CREDITOR: FINANCE (full redesign) ═══════════════════
-const CrFinance = ({setActive}) => {
+const CrFinance = ({setActive,setInitialExpandDeal,setReturnTo}) => {
   const [expandedMonth,setExpandedMonth]=useState(-1);const [toast,setToast]=useState(null);
   const [sectionSigning,setSectionSigning]=useState(null);
   const [signedFields,setSignedFields]=useState(new Set());
@@ -1696,7 +1696,7 @@ const CrFinance = ({setActive}) => {
       <Card className="xl:col-span-2 p-6"><div className="flex items-center justify-between mb-4"><h3 className="font-semibold text-sm" style={{color:B.t1}}>Финансирование по месяцам</h3></div>
         <ResponsiveContainer width="100%" height={180}><BarChart data={chartData} barCategoryGap="30%"><CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false}/><XAxis dataKey="month" axisLine={false} tickLine={false} tick={{fill:B.t3,fontSize:12}}/><YAxis axisLine={false} tickLine={false} tick={{fill:B.t3,fontSize:12}} tickFormatter={v=>`${v/1000}k`}/><Tooltip formatter={(v,name)=>[fmtByn(v),name==="received"?"Получено":"Дисконт"]} contentStyle={{borderRadius:12,border:"none",boxShadow:"0 4px 20px rgba(0,0,0,0.08)"}}/><Bar dataKey="received" fill={B.green} radius={[6,6,0,0]} name="received"/><Bar dataKey="discount" fill={B.yellow} radius={[6,6,0,0]} name="discount"/></BarChart></ResponsiveContainer>
 
-        <div className="mt-4 pt-4 border-t border-slate-100"><div className="text-xs font-medium mb-3" style={{color:B.t3}}>Уступки — {currentMonth.month}</div><table className="w-full text-sm"><thead><tr className="text-xs" style={{color:B.t3}}><th className="pb-2 text-left font-medium">№</th><th className="pb-2 text-left font-medium">Покупатель</th><th className="pb-2 text-right font-medium">Сумма</th><th className="pb-2 text-right font-medium">Дисконт</th><th className="pb-2 text-right font-medium">Получено</th></tr></thead><tbody>{currentDeals.map(d=>{const buyer=BUYERS.find(b=>b.id===d.buyerId);return <TableRow key={d.id}><td className="py-2" style={{fontFamily:"'JetBrains Mono',monospace",fontSize:11,color:B.accent}}>{d.id}</td><td className="py-2" style={{color:B.t1}}>{buyer?.name}</td><td className="py-2 text-right">{fmtByn(d.amount)}</td><td className="py-2 text-right" style={{color:B.red}}>−{fmtByn(d.discount)}</td><td className="py-2 text-right font-bold" style={{color:B.green}}>{fmtByn(d.toReceive)}</td></TableRow>})}</tbody></table></div>
+        <div className="mt-4 pt-4 border-t border-slate-100"><div className="text-xs font-medium mb-3" style={{color:B.t3}}>Уступки — {currentMonth.month}</div><table className="w-full text-sm"><thead><tr className="text-xs" style={{color:B.t3}}><th className="pb-2 text-left font-medium">№</th><th className="pb-2 text-left font-medium">Покупатель</th><th className="pb-2 text-right font-medium">Сумма</th><th className="pb-2 text-right font-medium">Дисконт</th><th className="pb-2 text-right font-medium">Получено</th></tr></thead><tbody>{currentDeals.map(d=>{const buyer=BUYERS.find(b=>b.id===d.buyerId);return <TableRow key={d.id} style={{cursor:"pointer"}} onClick={()=>{setInitialExpandDeal?.(d.id);setReturnTo?.("cr-finance");setActive("cr-deals")}}><td className="py-2 hover:underline" style={{fontFamily:"'JetBrains Mono',monospace",fontSize:11,color:B.accent}}>{d.id}</td><td className="py-2" style={{color:B.t1}}>{buyer?.name}</td><td className="py-2 text-right">{fmtByn(d.amount)}</td><td className="py-2 text-right" style={{color:B.red}}>−{fmtByn(d.discount)}</td><td className="py-2 text-right font-bold" style={{color:B.green}}>{fmtByn(d.toReceive)}</td></TableRow>})}</tbody></table></div>
       </Card>
     </div>
 
@@ -2486,7 +2486,7 @@ const CompanyProfile = ({ctx,isActualization,onComplete,onDirtyChange}) => {
 };
 
 // ═══ CREDITOR: OVERDUE INFO ══════════════════════════════
-const CrOverdue = ({setActive,setInitialExpandDeal}) => {
+const CrOverdue = ({setActive,setInitialExpandDeal,setReturnTo}) => {
   const overdue=CR_DEALS.filter(d=>d.status==="overdue");
   if(overdue.length===0) return <div><PageHeader title="Просрочки" subtitle="Мониторинг просроченных уступок"/>
     <Card className="p-16 text-center"><div className="w-16 h-16 rounded-full mx-auto mb-4 flex items-center justify-center" style={{background:B.greenL}}><CheckCircle size={32} style={{color:B.green}}/></div><h3 className="text-xl font-bold mb-2" style={{color:B.green}}>Все уступки в срок ✓</h3><p className="text-sm" style={{color:B.t2}}>У вас нет просроченных обязательств. Всё идёт отлично!</p></Card></div>;
@@ -2524,7 +2524,11 @@ export default function App() {
   const [returnSupplyId,setReturnSupplyId]=useState(null);
   const [initialViewSupply,setInitialViewSupply]=useState(null);
   const [initialViewDoc,setInitialViewDoc]=useState(null);
-  const [returnTo,setReturnTo]=useState(null);
+  const [navStack,setNavStack]=useState([]);
+  const pushNav=(page)=>setNavStack(p=>[...p,page]);
+  const popNav=()=>{const s=[...navStack];const last=s.pop();setNavStack(s);return last};
+  const returnTo=navStack.length>0?navStack[navStack.length-1]:null;
+  const setReturnTo=(page)=>pushNav(page);
   const [initialThread,setInitialThread]=useState(null);
   const [notifOpen,setNotifOpen]=useState(false);
   const [loading,setLoading]=useState(true);
@@ -2554,27 +2558,27 @@ export default function App() {
   const unreadCount = NOTIFICATIONS.filter(n=>n.ctx===ctx).length;
 
   const pages = {
-    "cr-tasks":<CrTasks setActive={go} setInitialThread={setInitialThread}/>,
-    "cr-dashboard":<CrDashboard setActive={go} setInitialThread={setInitialThread} setInitialExpandDeal={setInitialExpandDeal}/>,
+    "cr-tasks":<CrTasks setActive={go} setInitialThread={setInitialThread} setInitialViewDoc={setInitialViewDoc}/>,
+    "cr-dashboard":<CrDashboard setActive={go} setInitialThread={setInitialThread} setInitialExpandDeal={setInitialExpandDeal} setReturnTo={setReturnTo}/>,
     "cr-scoring":<CrScoring setActive={go}/>,
     "cr-mass":<CrMassScoring/>,
     "cr-buyers":<CrBuyers setActive={setActive} setInitialThread={setInitialThread} setInitialExpandDeal={setInitialExpandDeal} setInitialShowWizard={setInitialShowWizard} setReturnTo={setReturnTo}/>,
     "cr-partners":<PartnersPage ctx="creditor" setActive={go}/>,
-    "cr-deals":<CrDeals setInitialExpandDeal={setInitialExpandDeal} setReturnDealId={setReturnDealId} setInitialViewDoc={setInitialViewDoc} setReturnTo={setReturnTo} initialShowWizard={initialShowWizard} onClearWizard={()=>setInitialShowWizard(false)} initialExpandDeal={initialExpandDeal} returnTo={returnTo} onReturnNav={()=>{if(returnTo){setActive(returnTo);setReturnTo(null)}}} onClearExpand={()=>setInitialExpandDeal(null)} onSuccess={triggerConfetti} setActive={setActive} setInitialThread={setInitialThread}/>,
-    "cr-overdue":<CrOverdue setActive={setActive} setInitialExpandDeal={setInitialExpandDeal}/>,
-    "cr-documents":<CrDocuments setActive={setActive} setInitialThread={setInitialThread} initialViewDoc={initialViewDoc} onClearViewDoc={()=>setInitialViewDoc(null)} returnTo={returnTo} onReturn={()=>{if(returnTo){if(returnDealId){setInitialExpandDeal(returnDealId);setReturnDealId(null)}setActive(returnTo);setReturnTo(null)}else setViewDoc(null)}}/>,
-    "cr-finance":<CrFinance setActive={setActive}/>,
+    "cr-deals":<CrDeals setInitialExpandDeal={setInitialExpandDeal} setReturnDealId={setReturnDealId} setInitialViewDoc={setInitialViewDoc} setReturnTo={setReturnTo} initialShowWizard={initialShowWizard} onClearWizard={()=>setInitialShowWizard(false)} initialExpandDeal={initialExpandDeal} returnTo={returnTo} onReturnNav={()=>{const target=popNav();if(target)setActive(target)}} onClearExpand={()=>setInitialExpandDeal(null)} onSuccess={triggerConfetti} setActive={setActive} setInitialThread={setInitialThread}/>,
+    "cr-overdue":<CrOverdue setActive={setActive} setInitialExpandDeal={setInitialExpandDeal} setReturnTo={setReturnTo}/>,
+    "cr-documents":<CrDocuments setActive={setActive} setInitialThread={setInitialThread} initialViewDoc={initialViewDoc} onClearViewDoc={()=>setInitialViewDoc(null)} returnTo={returnTo} onReturn={()=>{const target=popNav();if(target){if(returnDealId){setInitialExpandDeal(returnDealId);setReturnDealId(null)}setActive(target)}else setViewDoc(null)}}/>,
+    "cr-finance":<CrFinance setActive={setActive} setInitialExpandDeal={setInitialExpandDeal} setReturnTo={setReturnTo}/>,
     "cr-profile":<CompanyProfile ctx="creditor" isActualization={false} onDirtyChange={setProfileDirty}/>,
     "cr-messages":<MessagesPage ctx="creditor" setActive={setActive} initialThread={initialThread} onNavigateDeal={id=>{setInitialExpandDeal(id)}}/>,
     "cr-support":<SupportPage ctx="creditor"/>,
     "cr-settings":<CrSettings dark={dark} setDark={setDark}/>,
-    "db-tasks":<DbTasks setActive={go} setInitialThread={setInitialThread}/>,
-    "db-dashboard":<DbDashboard setActive={go} setInitialThread={setInitialThread} setInitialViewSupply={setInitialViewSupply}/>,
-    "db-supplies":<DbSupplies setActive={setActive} setInitialThread={setInitialThread} setInitialViewDoc={setInitialViewDoc} setReturnTo={setReturnTo} setReturnSupplyId={setReturnSupplyId} setInitialViewSupply={setInitialViewSupply} initialViewSupply={initialViewSupply} onClearViewSupply={()=>setInitialViewSupply(null)}/>,
-    "db-payments":<DbPayments setActive={setActive} setInitialThread={setInitialThread} setInitialViewSupply={setInitialViewSupply}/>,
+    "db-tasks":<DbTasks setActive={go} setInitialThread={setInitialThread} setInitialViewDoc={setInitialViewDoc}/>,
+    "db-dashboard":<DbDashboard setActive={go} setInitialThread={setInitialThread} setInitialViewSupply={setInitialViewSupply} setReturnTo={setReturnTo}/>,
+    "db-supplies":<DbSupplies setActive={setActive} setInitialThread={setInitialThread} setInitialViewDoc={setInitialViewDoc} setReturnTo={setReturnTo} setReturnSupplyId={setReturnSupplyId} setInitialViewSupply={setInitialViewSupply} initialViewSupply={initialViewSupply} onClearViewSupply={()=>setInitialViewSupply(null)} returnTo={returnTo} onReturnNav={()=>{const target=popNav();if(target)setActive(target)}}/>,
+    "db-payments":<DbPayments setActive={setActive} setInitialThread={setInitialThread} setInitialViewSupply={setInitialViewSupply} setReturnTo={setReturnTo}/>,
     "db-limit":<DbLimit/>,
     "db-partners":<PartnersPage ctx="debtor" setActive={go}/>,
-    "db-documents":<DbDocuments setActive={setActive} setInitialThread={setInitialThread} initialViewDoc={initialViewDoc} onClearViewDoc={()=>setInitialViewDoc(null)} returnTo={returnTo} onReturn={()=>{if(returnTo){if(returnSupplyId){setInitialViewSupply(returnSupplyId);setReturnSupplyId(null)}setActive(returnTo);setReturnTo(null)}else setViewDoc(null)}}/>,
+    "db-documents":<DbDocuments setActive={setActive} setInitialThread={setInitialThread} initialViewDoc={initialViewDoc} onClearViewDoc={()=>setInitialViewDoc(null)} returnTo={returnTo} onReturn={()=>{const target=popNav();if(target){if(returnSupplyId){setInitialViewSupply(returnSupplyId);setReturnSupplyId(null)}setActive(target)}else setViewDoc(null)}}/>,
     "db-profile":<CompanyProfile ctx="debtor" isActualization={false} onDirtyChange={setProfileDirty}/>,
     "db-messages":<MessagesPage ctx="debtor" setActive={setActive} initialThread={initialThread} onNavigateDeal={id=>{setInitialExpandDeal(id)}}/>,
     "db-support":<SupportPage ctx="debtor"/>,
