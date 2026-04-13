@@ -601,7 +601,7 @@ const CrDashboard = ({setActive,setInitialThread,setInitialExpandDeal,setReturnT
     {/* Active deals — waiting for money */}
     {(()=>{const pending=CR_DEALS.filter(d=>d.status==="active"||d.status==="pending");if(!pending.length)return null;return <Card className="p-5 mb-5 animate-fade-up">
       <div className="flex items-center justify-between mb-3"><div className="flex items-center gap-2"><TrendingUp size={16} style={{color:B.accent}}/><h3 className="text-sm font-bold" style={{color:B.t1}}><InfoTooltip text="Уступки, по которым ожидается оплата от покупателя. Финансирование уже получено">Мои активные уступки</InfoTooltip></h3><span className="text-xs px-2 py-0.5 rounded-full" style={{background:B.accentL,color:B.accent}}>{pending.length}</span></div><Btn size="sm" variant="secondary" onClick={()=>setActive("cr-deals")}>Все уступки →</Btn></div>
-      <div className="text-xs mb-3" style={{color:B.t3}}>Уступки, по которым вы ожидаете финансирование или оплату от покупателя</div>
+      <div className="text-xs mb-3" style={{color:B.t3}}>Уступки, по которым вы ожидаете финансирование</div>
       <div className="space-y-2">{pending.sort((a,b)=>a.daysLeft-b.daysLeft).map(d=>{const buyer=BUYERS.find(b=>b.id===d.buyerId);return <div key={d.id} className="flex items-center gap-3 p-3 rounded-xl border border-slate-100 hover:border-slate-200 hover:shadow-sm transition-all cursor-pointer" onClick={()=>{setInitialExpandDeal?.(d.id);setReturnTo?.("cr-dashboard");setActive("cr-deals")}}>
         <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={{background:d.daysLeft<14?B.yellowL:B.accentL}}>{d.ecpStatus==="pending"?<Pen size={14} style={{color:B.yellow}}/>:<CheckCircle size={14} style={{color:B.accent}}/>}</div>
         <div className="flex-1 min-w-0">
@@ -1853,6 +1853,7 @@ const CrBuyers = ({setActive,setInitialThread,setInitialExpandDeal,setInitialSho
   const [viewBuyer,setViewBuyer]=useState(null);
   const [toast,setToast]=useState(null);
   const [buySearch,setBuySearch]=useState("");
+  const [showRates,setShowRates]=useState(false);
   const filtered = BUYERS.filter(b=>(filter==="all"||b.status===filter)&&(!buySearch||b.name.toLowerCase().includes(buySearch.toLowerCase())||b.unp.includes(buySearch)));
 
   // Buyer profile view
@@ -1920,6 +1921,8 @@ const CrBuyers = ({setActive,setInitialThread,setInitialExpandDeal,setInitialSho
   return <div>{toast&&<Toast message={toast.msg} type={toast.type} onClose={()=>setToast(null)}/>}
     <PageHeader title="Покупатели (должники)" subtitle={`${BUYERS.length} покупателей в базе`}/>
     <div className="flex items-center gap-3 mb-5"><div className="flex gap-2">{[["all","Все",B.accent],["green","Одобрены",B.green],["yellow","Ожидает одобрение",B.yellow],["red","Отказ",B.red]].map(([v,l,c])=><button key={v} onClick={()=>setFilter(v)} className={`px-4 py-2 rounded-xl text-sm font-medium transition-colors ${filter===v?"text-white":"text-slate-500 bg-slate-50"}`} style={filter===v?{background:c}:undefined}>{l}</button>)}</div><div className="relative ml-auto"><Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"/><input value={buySearch} onChange={e=>setBuySearch(e.target.value)} placeholder="Поиск по названию или УНП..." className="pl-9 pr-3 py-2 w-72 text-sm rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-200"/></div></div>
+    <div className="flex items-center justify-between mb-4"><div/><Btn variant="secondary" icon={CreditCard} onClick={()=>setShowRates(!showRates)}>{showRates?"Скрыть стоимость":"Стоимость факторинга"}</Btn></div>
+    {showRates&&<Card className="p-5 mb-4"><h3 className="font-semibold mb-3" style={{color:B.t1}}><InfoTooltip text="Процент дисконта за указанный период. Рассчитывается: годовая ставка / 365 × дни. Ставка индивидуальна по каждому покупателю">Стоимость факторинга по покупателям</InfoTooltip></h3><table className="w-full text-sm"><thead><tr className="text-xs border-b border-slate-100" style={{color:B.t3}}><th className="pb-2 text-left font-medium">Покупатель</th><th className="pb-2 text-center font-medium">30 дн</th><th className="pb-2 text-center font-medium">60 дн</th><th className="pb-2 text-center font-medium">90 дн</th></tr></thead><tbody>{BUYERS.filter(b=>b.status==="green"&&b.rate>0).map(b=><TableRow key={b.id}><td className="py-2"><div className="font-medium" style={{color:B.t1}}>{b.name}</div></td><td className="py-2 text-center font-bold" style={{color:B.accent}}>{calcPeriodRate(b.rate,30)}%</td><td className="py-2 text-center font-bold" style={{color:B.accent}}>{calcPeriodRate(b.rate,60)}%</td><td className="py-2 text-center font-bold" style={{color:B.accent}}>{calcPeriodRate(b.rate,90)}%</td></TableRow>)}</tbody></table></Card>}
     <Card className="overflow-hidden overflow-x-auto"><table className="w-full text-sm"><thead><tr className="text-xs text-left border-b border-slate-100" style={{color:B.t3,background:"#FAFBFC"}}><th className="px-5 py-3 font-medium">Компания</th><th className="px-3 py-3 font-medium">УНП</th><th className="px-3 py-3 font-medium">Статус</th><th className="px-3 py-3 font-medium text-right">Лимит</th><th className="px-3 py-3 font-medium text-right"><InfoTooltip text="Сколько ещё можно уступить по этому покупателю в рамках лимита">Доступно</InfoTooltip></th><th className="px-3 py-3 font-medium">Сделок</th></tr></thead>
     <tbody>{filtered.map(b=><tr key={b.id} onClick={()=>setViewBuyer(b)} className="border-b border-slate-50 cursor-pointer transition-colors hover:bg-slate-50">
       <td className="px-5 py-3 font-medium" style={{color:B.t1}}>{b.name}</td>
@@ -2164,7 +2167,7 @@ const CrSettings = ({dark,setDark}) => {
       </Card>
 
       {/* Tariffs */}
-      <Card className="p-5"><h3 className="font-semibold mb-3" style={{color:B.t1}}>Стоимость факторинга по покупателям</h3><table className="w-full text-sm"><thead><tr className="text-xs border-b border-slate-100" style={{color:B.t3}}><th className="pb-2 text-left font-medium">Покупатель</th><th className="pb-2 text-center font-medium">30 дн</th><th className="pb-2 text-center font-medium">60 дн</th><th className="pb-2 text-center font-medium">90 дн</th></tr></thead><tbody>{BUYERS.filter(b=>b.status==="green"&&b.rate>0).map(b=><TableRow key={b.id}><td className="py-2"><div className="font-medium" style={{color:B.t1}}>{b.name}</div></td><td className="py-2 text-center font-bold" style={{color:B.accent}}>{calcPeriodRate(b.rate,30)}%</td><td className="py-2 text-center font-bold" style={{color:B.accent}}>{calcPeriodRate(b.rate,60)}%</td><td className="py-2 text-center font-bold" style={{color:B.accent}}>{calcPeriodRate(b.rate,90)}%</td></TableRow>)}</tbody></table></Card>
+
     </div>
   </div>;
 };
